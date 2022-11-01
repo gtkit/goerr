@@ -1,5 +1,5 @@
 // @Author xiaozhaofu 2022/11/1 16:05:00
-package helper
+package goerr
 
 import (
 	"fmt"
