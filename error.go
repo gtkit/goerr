@@ -93,3 +93,8 @@ func WithStack(err error) Error {
 
 	return &item{msg: err.Error(), stack: callers()}
 }
+
+// 返回没有堆栈的自定义错误
+func custom(msg string) Error {
+	return errors.New(msg)
+}
