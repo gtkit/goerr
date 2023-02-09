@@ -101,5 +101,8 @@ func Custom(msg string) Error {
 
 func Is(err, target error) bool {
 	return errors.Is(err, target)
+}
 
+func WithMessage(err error, msg string) error {
+	return errors.WithMessage(err, msg)
 }
