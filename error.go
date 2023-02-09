@@ -103,6 +103,6 @@ func Is(err, target error) bool {
 	return errors.Is(err, target)
 }
 
-func WithMessage(err error, msg string) error {
+func WithMessage(err error, msg string) Error {
 	return errors.WithMessage(err, msg)
 }
