@@ -1,34 +1,36 @@
 package goerr
 
-/**
-  项目组代号:10
-  服务代号:01
-  模块代号:0~99
-  错误码：0~99
+/*
+*
 
-  | 错误标识                | 错误码   | HTTP状态码 | 描述                          |
-  | ----------------------- | -------- | ---------- | ----------------------------- |
-  | ErrNo                   | 10010000 | 200        | OK                            |
-  | ErrInternalServer       | 10010001 | 500        | Internal server error         |
-  | ErrParams               | 10010002 | 400        | Illegal params                |
-  | ErrValidateParams       | 10010012 | 400        | validator.ValidationErrors    |
-  | ErrAuthentication       | 10010003 | 401        | Authentication failed         |
-  | ErrNotFound             | 10010004 | 404        | Page not found                |
-  | ErrAuthenticationHeader | 10010005 | 401        | Authentication header Illegal |
-  | ErrAppKey               | 10010006 | 401        | Invalid app key               |
-  | ErrSecretKey            | 10010007 | 401        | Invalid secret key            |
-  | ErrPermission           | 10010008 | 403        | Permission denied             |
-  | ErrTooManyRequests      | 10010013 | 429        | Too Many Requests             |
-  | ErrInvalidJson          | 10010009 | 500        | Invalid Json                  |
-  | ErrTimeout              | 10010010 | 504        | Server response timeout       |
-  | ErrElasticsearchServer  | 10010101 | 500        | Elasticsearch server error    |
-  | ErrElasticsearchDSL     | 10010102 | 500        | Elasticsearch  DSL error      |
-  | ErrMysqlServer          | 10010201 | 500        | Mysql server error            |
-  | ErrMysqlSQL             | 10010202 | 500        | Illegal SQL                   |
-  | ErrMongoServer          | 10010301 | 500        | MongoDB server error          |
-  | ErrMongoDSL             | 10010302 | 500        | MongoDB DSL error             |
-  | ErrRedisServer          | 10010401 | 500        | Redis server error            |
-  | ErrKafkaServer          | 10010501 | 500        | Kafka server error            |
+	项目组代号:10
+	服务代号:01
+	模块代号:0~99
+	错误码：0~99
+
+	| 错误标识                | 错误码   | HTTP状态码 | 描述                          |
+	| ----------------------- | -------- | ---------- | ----------------------------- |
+	| ErrNo                   | 10010000 | 200        | OK                            |
+	| ErrInternalServer       | 10010001 | 500        | Internal server error         |
+	| ErrParams               | 10010002 | 400        | Illegal params                |
+	| ErrValidateParams       | 10010012 | 400        | validator.ValidationErrors    |
+	| ErrAuthentication       | 10010003 | 401        | Authentication failed         |
+	| ErrNotFound             | 10010004 | 404        | Page not found                |
+	| ErrAuthenticationHeader | 10010005 | 401        | Authentication header Illegal |
+	| ErrAppKey               | 10010006 | 401        | Invalid app key               |
+	| ErrSecretKey            | 10010007 | 401        | Invalid secret key            |
+	| ErrPermission           | 10010008 | 403        | Permission denied             |
+	| ErrTooManyRequests      | 10010013 | 429        | Too Many Requests             |
+	| ErrInvalidJson          | 10010009 | 500        | Invalid Json                  |
+	| ErrTimeout              | 10010010 | 504        | Server response timeout       |
+	| ErrElasticsearchServer  | 10010101 | 500        | Elasticsearch server error    |
+	| ErrElasticsearchDSL     | 10010102 | 500        | Elasticsearch  DSL error      |
+	| ErrMysqlServer          | 10010201 | 500        | Mysql server error            |
+	| ErrMysqlSQL             | 10010202 | 500        | Illegal SQL                   |
+	| ErrMongoServer          | 10010301 | 500        | MongoDB server error          |
+	| ErrMongoDSL             | 10010302 | 500        | MongoDB DSL error             |
+	| ErrRedisServer          | 10010401 | 500        | Redis server error            |
+	| ErrKafkaServer          | 10010501 | 500        | Kafka server error            |
 */
 type ErrCode struct {
 	Code     int
@@ -41,6 +43,11 @@ var (
 		Code:     0,
 		HTTPCode: 200,
 		Desc:     "OK",
+	}
+	ErrRequestFail = ErrCode{
+		Code:     101,
+		HTTPCode: 200,
+		Desc:     "请求失败",
 	}
 	ErrInternalServer = ErrCode{
 		Code:     10010001,
