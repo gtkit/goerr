@@ -56,13 +56,13 @@ var (
 	}
 	ErrParams = ErrCode{
 		Code:     10010002,
-		HTTPCode: 400,
+		HTTPCode: 422,
 		Desc:     "Illegal params",
 	}
 	ErrValidateParams = ErrCode{
 		Code:     10010012,
-		HTTPCode: 400,
-		Desc:     "Illegal params",
+		HTTPCode: 422,
+		Desc:     "validator.ValidationErrors",
 	}
 	ErrAuthentication = ErrCode{
 		Code:     10010003,
