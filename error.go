@@ -98,7 +98,9 @@ func WithStack(err error) Error {
 func Custom(msg string) Error {
 	return errors.New(msg)
 }
-
+func Err(msg string) Error {
+	return errors.New(msg)
+}
 func Is(err, target error) bool {
 	return errors.Is(err, target)
 }
