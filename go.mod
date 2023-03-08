@@ -1,4 +1,4 @@
-module gitlab.superjq.com/go-tools/goerr
+module github.com/gtkit/goerr
 
 go 1.17
 
