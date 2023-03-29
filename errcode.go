@@ -106,7 +106,7 @@ var (
 	}
 	ErrTimeout = ErrCode{
 		Code:     10010010,
-		HTTPCode: 504,
+		HTTPCode: 408,
 		Desc:     "Server response timeout",
 	}
 	ErrAuthExpired = ErrCode{
