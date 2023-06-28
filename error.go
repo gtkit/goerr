@@ -18,15 +18,21 @@ func callers() []uintptr {
 // Error an error with caller stack information
 type Error interface {
 	error
+	Code() ErrCode
 }
 
 type item struct {
 	msg   string
+	code  ErrCode
 	stack []uintptr
 }
 
 func (i *item) Error() string {
 	return i.msg
+}
+
+func (i *item) Code() ErrCode {
+	return i.code
 }
 
 // Format used by go.uber.org/zap in Verbose
@@ -40,8 +46,8 @@ func (i *item) Format(s fmt.State, verb rune) {
 }
 
 // New create a new error
-func New(msg string) Error {
-	return &item{msg: msg, stack: callers()}
+func New(err error, code ErrCode, msg string) Error {
+	return &item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), code: code, stack: callers()}
 }
 
 // Errorf create a new error
@@ -95,16 +101,16 @@ func WithStack(err error) Error {
 }
 
 // 返回没有堆栈的自定义错误
-func Custom(msg string) Error {
+func Custom(msg string) error {
 	return errors.New(msg)
 }
-func Err(msg string) Error {
+func Err(msg string) error {
 	return errors.New(msg)
 }
 func Is(err, target error) bool {
 	return errors.Is(err, target)
 }
 
-func WithMessage(err error, msg string) Error {
+func WithMessage(err error, msg string) error {
 	return errors.WithMessage(err, msg)
 }

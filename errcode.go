@@ -1,6 +1,7 @@
 package goerr
 
 /*
+ErrCode
 *
 
 	项目组代号:10
