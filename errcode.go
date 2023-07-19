@@ -11,27 +11,29 @@ ErrCode
 
 	| 错误标识	              | 错误码	 | HTTP状态码  | 描述							  |
 	| ----------------------- | -------- | ---------- | ----------------------------- |
-	| ErrNo                   | 10010000 | 200        | OK                            |
-	| ErrInternalServer       | 10010001 | 500        | Internal server error         |
-	| ErrParams               | 10010002 | 400        | Illegal params                |
-	| ErrValidateParams       | 10010012 | 400        | validator.ValidationErrors    |
-	| ErrAuthentication       | 10010003 | 401        | Authentication failed         |
-	| ErrNotFound             | 10010004 | 404        | Page not found                |
-	| ErrAuthenticationHeader | 10010005 | 401        | Authentication header Illegal |
-	| ErrAppKey               | 10010006 | 401        | Invalid app key               |
-	| ErrSecretKey            | 10010007 | 401        | Invalid secret key            |
-	| ErrPermission           | 10010008 | 403        | Permission denied             |
-	| ErrTooManyRequests      | 10010013 | 429        | Too Many Requests             |
-	| ErrInvalidJson          | 10010009 | 500        | Invalid Json                  |
-	| ErrTimeout              | 10010010 | 504        | Server response timeout       |
-	| ErrElasticsearchServer  | 10010101 | 500        | Elasticsearch server error    |
-	| ErrElasticsearchDSL     | 10010102 | 500        | Elasticsearch  DSL error      |
-	| ErrMysqlServer          | 10010201 | 500        | Mysql server error            |
-	| ErrMysqlSQL             | 10010202 | 500        | Illegal SQL                   |
-	| ErrMongoServer          | 10010301 | 500        | MongoDB server error          |
-	| ErrMongoDSL             | 10010302 | 500        | MongoDB DSL error             |
-	| ErrRedisServer          | 10010401 | 500        | Redis server error            |
-	| ErrKafkaServer          | 10010501 | 500        | Kafka server error            |
+	| ErrNo                   | 10010000 | 200        | OK                            | 请求成功
+	| ErrInternalServer       | 10010001 | 500        | Internal server error         | 服务器内部错误
+	| ErrParams               | 10010002 | 400        | Illegal params                | 非法参数
+	| ErrValidateParams       | 10010012 | 400        | validator.ValidationErrors    | 验证器。验证错误
+	| ErrAuthentication       | 10010003 | 401        | Authentication failed         | 身份验证失败
+	| ErrNotFound             | 10010004 | 404        | Page not found                | 找不到
+	| ErrAuthenticationHeader | 10010005 | 401        | Authentication header Illegal | 认证头非法
+	| ErrAppKey               | 10010006 | 401        | Invalid app key               | 无效应用程序密钥
+	| ErrSecretKey            | 10010007 | 401        | Invalid secret key            | 无效应用程序密钥
+	| ErrPermission           | 10010008 | 403        | Permission denied             | 没有权限
+	| ErrTooManyRequests      | 10010013 | 429        | Too Many Requests             | 请求过多
+	| ErrRequestFail	      | 10010014 | 200        | ErrRequestFail	              | 请求失败或者响应为空
+	| ErrInvalidJson          | 10010009 | 500        | Invalid Json                  | 无效的JSON
+	| ErrTimeout              | 10010010 | 504        | Server response timeout       | 服务器响应超时
+	| ErrElasticsearchServer  | 10010101 | 500        | Elasticsearch server error    | Elasticsearch 服务器错误
+	| ErrElasticsearchDSL     | 10010102 | 500        | Elasticsearch  DSL error      | Elasticsearch DSL 错误
+	| ErrMysqlServer          | 10010201 | 500        | Mysql server error            | Mysql 服务器错误
+	| ErrMysqlSQL             | 10010202 | 500        | Illegal SQL                   | 非法SQL
+	| ErrMongoServer          | 10010301 | 500        | MongoDB server error          | MongoDB 服务器错误
+	| ErrMongoDSL             | 10010302 | 500        | MongoDB DSL error             | MongoDB DSL 错误
+	| ErrRedisServer          | 10010401 | 500        | Redis server error            | Redis 服务器错误
+	| ErrKafkaServer          | 10010501 | 500        | Kafka server error            | Kafka 服务器错误
+	| ErrRabbitMQServer       | 10010601 | 500        | RabbitMQ server error         | RabbitMq 服务器错误
 */
 type ErrCode struct {
 	Code     int
@@ -41,7 +43,7 @@ type ErrCode struct {
 
 var (
 	ErrNo = ErrCode{
-		Code:     0,
+		Code:     10010000,
 		HTTPCode: 200,
 		Desc:     "OK",
 	}
@@ -155,9 +157,9 @@ var (
 		HTTPCode: 500,
 		Desc:     "Kafka server error",
 	}
-	ErrSearch = ErrCode{
+	ErrRabbitMQServer = ErrCode{
 		Code:     10010601,
 		HTTPCode: 500,
-		Desc:     "search error",
+		Desc:     "RabbitMq server error",
 	}
 )
