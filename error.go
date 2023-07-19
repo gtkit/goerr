@@ -47,7 +47,10 @@ func (i *item) Format(s fmt.State, verb rune) {
 
 // New create a new error
 func New(err error, code ErrCode, msg string) Error {
-	return &item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), code: code, stack: callers()}
+	if err != nil {
+		return &item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), code: code, stack: callers()}
+	}
+	return &item{msg: fmt.Sprintf("%s;", msg), code: code, stack: callers()}
 }
 
 // Errorf create a new error
