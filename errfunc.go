@@ -1,5 +1,13 @@
 package goerr
 
+func SetError(code, httpcode int, msg string) ErrCode {
+	return ErrCode{
+		Code:     code,
+		HTTPCode: httpcode,
+		Desc:     msg,
+	}
+}
+
 func Ok(err ...ErrCode) ErrCode {
 	if len(err) > 0 {
 		return err[0]
