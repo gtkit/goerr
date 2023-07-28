@@ -32,8 +32,13 @@ ErrCode
 	| ErrMongoServer          | 10010301 | 500        | MongoDB server error          | MongoDB 服务器错误
 	| ErrMongoDSL             | 10010302 | 500        | MongoDB DSL error             | MongoDB DSL 错误
 	| ErrRedisServer          | 10010401 | 500        | Redis server error            | Redis 服务器错误
+	| ErrRedisClient          | 10010402 | 500        | Redis client error            | Redis 客户端错误
 	| ErrKafkaServer          | 10010501 | 500        | Kafka server error            | Kafka 服务器错误
+	| ErrKafkaProducer        | 10010502 | 500        | Kafka Producer error          | Kafka Producer 错误
+	| ErrKafkaConsumer        | 10010503 | 500        | Kafka Consumer error          | Kafka Consumer 错误
 	| ErrRabbitMQServer       | 10010601 | 500        | RabbitMQ server error         | RabbitMq 服务器错误
+	| ErrRabbitMQProducer     | 10010602 | 500        | RabbitMQ Producer error       | RabbitMq Producer 错误
+	| ErrRabbitMQConsumer     | 10010603 | 500        | RabbitMQ Consumer error       | RabbitMq Consumer 错误
 */
 type ErrCode struct {
 	Code     int
@@ -195,6 +200,12 @@ var (
 		HTTPCode: 500,
 		Desc:     "Redis server error",
 	}
+	// ErrRedisClient Redis 客户端错误
+	ErrRedisClient = ErrCode{
+		Code:     10010402,
+		HTTPCode: 500,
+		Desc:     "Redis key error",
+	}
 
 	// ErrKafkaServer Kafka 服务器错误
 	ErrKafkaServer = ErrCode{
@@ -202,11 +213,31 @@ var (
 		HTTPCode: 500,
 		Desc:     "Kafka server error",
 	}
+	ErrKafkaProducer = ErrCode{
+		Code:     10010502,
+		HTTPCode: 500,
+		Desc:     "Kafka producer error",
+	}
+	ErrKafkaConsumer = ErrCode{
+		Code:     10010503,
+		HTTPCode: 500,
+		Desc:     "Kafka consumer error",
+	}
 
 	// ErrRabbitMQServer RabbitMq 服务器错误
 	ErrRabbitMQServer = ErrCode{
 		Code:     10010601,
 		HTTPCode: 500,
 		Desc:     "RabbitMq server error",
+	}
+	ErrRabbitMQProducer = ErrCode{
+		Code:     10010602,
+		HTTPCode: 500,
+		Desc:     "RabbitMq producer error",
+	}
+	ErrRabbitMQConsumer = ErrCode{
+		Code:     10010603,
+		HTTPCode: 500,
+		Desc:     "RabbitMq consumer error",
 	}
 )
