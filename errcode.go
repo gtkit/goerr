@@ -16,6 +16,7 @@ ErrCode
 	| ErrParams               | 10010002 | 400        | Illegal params                | 非法参数
 	| ErrValidateParams       | 10010012 | 400        | validator.ValidationErrors    | 验证器。验证错误
 	| ErrAuthentication       | 10010003 | 401        | Authentication failed         | 身份验证失败
+	| ErrVipRights       	  | 10010015 | 401        | Not Vip Rights		          | 非会员
 	| ErrNotFound             | 10010004 | 404        | Page not found                | 找不到
 	| ErrAuthenticationHeader | 10010005 | 401        | Authentication header Illegal | 认证头非法
 	| ErrAppKey               | 10010006 | 401        | Invalid app key               | 无效应用程序密钥
@@ -73,6 +74,12 @@ var (
 		Code:     10010003,
 		HTTPCode: 401,
 		Desc:     "Authentication failed",
+	}
+
+	ErrVipRights = ErrCode{
+		Code:     10010015,
+		HTTPCode: 401,
+		Desc:     "Not Vip Rights",
 	}
 
 	// ErrNotFound 找不到

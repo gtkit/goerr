@@ -57,6 +57,13 @@ func Authentication(err ...ErrCode) ErrCode {
 	return ErrAuthentication
 }
 
+func VipRights(err ...ErrCode) ErrCode {
+	if len(err) > 0 {
+		return err[0]
+	}
+	return ErrVipRights
+}
+
 // NotFound 找不到
 func NotFound(err ...ErrCode) ErrCode {
 	if len(err) > 0 {
