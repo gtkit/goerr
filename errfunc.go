@@ -1,241 +1,161 @@
 package goerr
 
-// ErrCode error code
-func SetError(code, httpcode int, msg string) ErrCode {
-	return ErrCode{
-		Code:     code,
-		HTTPCode: httpcode,
-		Desc:     msg,
+import (
+	"net/http"
+)
+
+// setError error code.
+// code 自定义错误码.
+// httpCode HTTP状态码.
+// msg 自定义错误信息.
+func setError(code, httpCode int) ErrStatuser {
+	return &ErrStatus{
+		errCode:  code,
+		httpCode: httpCode,
+		msg:      statusText(code),
 	}
 }
 
-// Ok 请求成功
-func Ok(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrNo
+// Ok 请求成功.
+func Ok() ErrStatuser {
+	return setError(ErrNo, http.StatusOK)
 }
 
-// RequestFail 请求失败
-func RequestFail(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrRequestFail
+// RequestFail 请求失败.
+func RequestFail() ErrStatuser {
+	return setError(ErrRequestFail, http.StatusBadRequest)
 }
 
-// InternalServer 服务器内部错误
-func InternalServer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrInternalServer
+// InternalServer 服务器内部错误.
+func InternalServer() ErrStatuser {
+	return setError(ErrInternalServer, http.StatusInternalServerError)
 }
 
-// Params 非法参数
-func Params(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrParams
+// Params 非法参数.
+func Params() ErrStatuser {
+	return setError(ErrParams, http.StatusUnprocessableEntity)
 }
 
-// ValidateParams 验证参数
-func ValidateParams(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrValidateParams
+// ValidateParams 验证参数.
+func ValidateParams() ErrStatuser {
+	return setError(ErrValidateParams, http.StatusUnprocessableEntity)
 }
 
-// Authentication 身份验证失败
-func Authentication(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrAuthentication
+// Auth 身份验证失败.
+func Auth() ErrStatuser {
+	return setError(ErrAuthentication, http.StatusUnauthorized)
 }
 
-func VipRights(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrVipRights
+func Vip() ErrStatuser {
+	return setError(ErrVipRights, http.StatusUnauthorized)
 }
 
-// NotFound 找不到
-func NotFound(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrNotFound
+// NotFound 找不到.
+func NotFound() ErrStatuser {
+	return setError(ErrNotFound, http.StatusNotFound)
 }
 
-// AuthenticationHeader 认证头非法
-func AuthenticationHeader(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrAuthenticationHeader
+// AuthHeader 认证头非法.
+func AuthHeader() ErrStatuser {
+	return setError(ErrAuthenticationHeader, http.StatusForbidden)
 }
 
-// AppKey 无效应用程序密钥
-func AppKey(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrAppKey
+// AppKey 无效应用程序密钥.
+func AppKey() ErrStatuser {
+	return setError(ErrAppKey, http.StatusForbidden)
 }
 
-// Sign 无效应用签名
-func Sign(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrSign
+// Sign 无效应用签名.
+func Sign() ErrStatuser {
+	return setError(ErrSign, http.StatusUnauthorized)
 }
 
-// Permission 权限不足
-func Permission(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrPermission
+// Permission 权限不足.
+func Permission() ErrStatuser {
+	return setError(ErrPermission, http.StatusForbidden)
 }
 
-// TooManyRequests 请求过多
-func TooManyRequests(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrTooManyRequests
+// TooManyRequests 请求过多.
+func TooManyRequests() ErrStatuser {
+	return setError(ErrTooManyRequests, http.StatusTooManyRequests)
 }
 
-// InvalidJson 无效的JSON
-func InvalidJson(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrInvalidJson
+// InvalidJson 无效的JSON.
+func InvalidJson() ErrStatuser {
+	return setError(ErrInvalidJson, http.StatusUnprocessableEntity)
 }
 
-// Timeout 请求超时
-func Timeout(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrTimeout
+// Timeout 请求超时.
+func Timeout() ErrStatuser {
+	return setError(ErrTimeout, http.StatusRequestTimeout)
 }
 
-// AuthExpired 认证过期
-func AuthExpired(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrAuthExpired
+// AuthExpired 认证过期.
+func AuthExpired() ErrStatuser {
+	return setError(ErrExpired, http.StatusGatewayTimeout)
 }
 
-// ElasticsearchServer elasticsearch 服务器错误
-func ElasticsearchServer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrElasticsearchServer
+// ElasticsearchServer elasticsearch 服务器错误.
+func ElasticsearchServer() ErrStatuser {
+	return setError(ErrElasticsearchServer, http.StatusInternalServerError)
 }
 
-// ElasticsearchDSL elasticsearch DSL 错误
-func ElasticsearchDSL(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrElasticsearchDSL
+// ElasticsearchDSL elasticsearch DSL 错误.
+func ElasticsearchDSL() ErrStatuser {
+	return setError(ErrElasticsearchDSL, http.StatusInternalServerError)
 }
 
-// MysqlServer mysql 服务器错误
-func MysqlServer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrMysqlServer
+// MysqlServer mysql 服务器错误.
+func MysqlServer() ErrStatuser {
+	return setError(ErrMysqlServer, http.StatusInternalServerError)
 }
 
-// MysqlSQL mysql SQL 错误
-func MysqlSQL(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrMysqlSQL
+// MysqlSQL mysql SQL 错误.
+func MysqlSQL() ErrStatuser {
+	return setError(ErrMysqlSQL, http.StatusInternalServerError)
 }
 
-// MongoServer mongo 服务器错误
-func MongoServer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrMongoServer
+// MongoServer mongo 服务器错误.
+func MongoServer() ErrStatuser {
+	return setError(ErrMongoServer, http.StatusInternalServerError)
 }
 
-// MongoDSL mongo DSL 错误
-func MongoDSL(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrMongoDSL
+// MongoDSL mongo DSL 错误.
+func MongoDSL() ErrStatuser {
+	return setError(ErrMongoDSL, http.StatusInternalServerError)
 }
 
-// RedisServer redis 服务器错误
-func RedisServer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrRedisServer
+// RedisServer redis 服务器错误.
+func RedisServer() ErrStatuser {
+	return setError(ErrRedisServer, http.StatusInternalServerError)
 }
 
-// KafkaServer kafka 服务器错误
-func KafkaServer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrKafkaServer
+// KafkaServer kafka 服务器错误.
+func KafkaServer() ErrStatuser {
+	return setError(ErrKafkaServer, http.StatusInternalServerError)
 }
 
-// KafkaProducer kafka 生产者错误
-func KafkaProducer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrKafkaProducer
+// KafkaProducer kafka 生产者错误.
+func KafkaProducer() ErrStatuser {
+	return setError(ErrKafkaProducer, http.StatusInternalServerError)
 }
 
-// KafkaConsumer kafka 消费者错误
-func KafkaConsumer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrKafkaConsumer
+// KafkaConsumer kafka 消费者错误.
+func KafkaConsumer() ErrStatuser {
+	return setError(ErrKafkaConsumer, http.StatusInternalServerError)
 }
 
-// RabbitMQServer rabbitmq 服务器错误
-func RabbitMQServer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrRabbitMQServer
+// RabbitMQServer rabbitmq 服务器错误.
+func RabbitMQServer() ErrStatuser {
+	return setError(ErrRabbitMQServer, http.StatusInternalServerError)
 }
 
 // RabbitMQProducer rabbitmq 生产者错误
-func RabbitMQProducer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrRabbitMQProducer
+func RabbitMQProducer() ErrStatuser {
+	return setError(ErrRabbitMQProducer, http.StatusInternalServerError)
 }
 
 // RabbitMQConsumer rabbitmq 消费者错误
-func RabbitMQConsumer(err ...ErrCode) ErrCode {
-	if len(err) > 0 {
-		return err[0]
-	}
-	return ErrRabbitMQConsumer
+func RabbitMQConsumer() ErrStatuser {
+	return setError(ErrRabbitMQConsumer, http.StatusInternalServerError)
 }

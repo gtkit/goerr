@@ -18,21 +18,21 @@ func callers() []uintptr {
 // Error an error with caller stack information
 type Error interface {
 	error
-	Code() ErrCode
+	Status() ErrStatuser
 }
 
 type item struct {
-	msg   string
-	code  ErrCode
-	stack []uintptr
+	msg    string
+	status ErrStatuser
+	stack  []uintptr
 }
 
 func (i *item) Error() string {
 	return i.msg
 }
 
-func (i *item) Code() ErrCode {
-	return i.code
+func (i *item) Status() ErrStatuser {
+	return i.status
 }
 
 // Format used by go.uber.org/zap in Verbose
@@ -46,11 +46,14 @@ func (i *item) Format(s fmt.State, verb rune) {
 }
 
 // New create a new error
-func New(err error, code ErrCode, msg string) Error {
+func New(err error, status ErrStatuser, msg string) Error {
 	if err != nil {
-		return &item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), code: code, stack: callers()}
+		if msg == "" {
+			return &item{msg: fmt.Sprintf("%s", err.Error()), status: status, stack: callers()}
+		}
+		return &item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), status: status, stack: callers()}
 	}
-	return &item{msg: fmt.Sprintf("%s", msg), code: code, stack: callers()}
+	return &item{msg: fmt.Sprintf("%s", msg), status: status, stack: callers()}
 }
 
 // Errorf create a new error
@@ -103,10 +106,6 @@ func WithStack(err error) Error {
 	return &item{msg: err.Error(), stack: callers()}
 }
 
-// 返回没有堆栈的自定义错误
-func Custom(msg string) error {
-	return errors.New(msg)
-}
 func Err(msg string) error {
 	return errors.New(msg)
 }
@@ -115,5 +114,9 @@ func Is(err, target error) bool {
 }
 
 func WithMessage(err error, msg string) error {
+	return errors.WithMessage(err, msg)
+}
+
+func WithMsg(err error, msg string) error {
 	return errors.WithMessage(err, msg)
 }
