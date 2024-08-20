@@ -35,6 +35,14 @@ func (i *item) Status() ErrStatuser {
 	return i.status
 }
 
+func (i *item) ErrCode() int {
+	return i.status.ErrCode()
+}
+
+func (i *item) ErrMsg() string {
+	return i.status.Msg()
+}
+
 // Format used by go.uber.org/zap in Verbose
 func (i *item) Format(s fmt.State, verb rune) {
 	io.WriteString(s, i.msg)
