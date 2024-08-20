@@ -19,6 +19,9 @@ func callers() []uintptr {
 type Error interface {
 	error
 	Status() ErrStatuser
+	ErrCode() int
+	ErrMsg() string
+	HttpCode() int
 }
 
 type item struct {
