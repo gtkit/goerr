@@ -43,6 +43,10 @@ func (i *item) ErrMsg() string {
 	return i.status.Msg()
 }
 
+func (i *item) HttpCode() int {
+	return i.status.HTTPCode()
+}
+
 // Format used by go.uber.org/zap in Verbose
 func (i *item) Format(s fmt.State, verb rune) {
 	io.WriteString(s, i.msg)
