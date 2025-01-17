@@ -4,6 +4,29 @@ import (
 	"net/http"
 )
 
+type ErrStatus struct {
+	errCode  int
+	httpCode int
+	msg      string
+}
+
+type ErrStatuser interface {
+	ErrCode() int
+	Msg() string
+	HTTPCode() int
+}
+
+func (e *ErrStatus) ErrCode() int {
+	return e.errCode
+}
+
+func (e *ErrStatus) HTTPCode() int {
+	return e.httpCode
+}
+func (e *ErrStatus) Msg() string {
+	return e.msg
+}
+
 // setError error code.
 // code 自定义错误码.
 // httpCode HTTP状态码.

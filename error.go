@@ -61,6 +61,9 @@ func (i *item) Format(s fmt.State, verb rune) {
 }
 
 // New create a new error.
+// err is the original error.
+// status is the error status function defined in errstatuser.go .
+// emsg is the extra message.
 func New(err error, status ErrStatuser, emsg ...string) Error {
 	msg := emsg[0]
 	if err != nil {
@@ -125,11 +128,17 @@ func WithStack(err error) Error {
 	return &item{msg: err.Error(), stack: callers()}
 }
 
+// Err create a new error with message
 func Err(msg string) error {
 	return errors.New(msg)
 }
+
 func Is(err, target error) bool {
 	return errors.Is(err, target)
+}
+
+func As(err error, target any) bool {
+	return errors.As(err, target)
 }
 
 func WithMessage(err error, msg string) error {

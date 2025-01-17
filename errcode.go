@@ -82,29 +82,6 @@ const (
 	ErrRabbitMQConsumer = 10010603
 )
 
-type ErrStatus struct {
-	errCode  int
-	httpCode int
-	msg      string
-}
-
-type ErrStatuser interface {
-	ErrCode() int
-	Msg() string
-	HTTPCode() int
-}
-
-func (e *ErrStatus) ErrCode() int {
-	return e.errCode
-}
-
-func (e *ErrStatus) HTTPCode() int {
-	return e.httpCode
-}
-func (e *ErrStatus) Msg() string {
-	return e.msg
-}
-
 func statusText(code int) string {
 	switch code {
 	case ErrNo:
