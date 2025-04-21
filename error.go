@@ -64,8 +64,12 @@ func (i *item) Format(s fmt.State, verb rune) {
 // err is the original error.
 // status is the error status function defined in errstatuser.go .
 // emsg is the extra message.
-func New(err error, status func() ErrStatuser, emsg ...string) Error {
-	msg := emsg[0]
+func New(err error, status func() ErrStatuser, errmsg ...string) Error {
+	var msg string
+	if len(errmsg) > 0 {
+		msg = errmsg[0]
+	}
+
 	if err != nil {
 		if msg == "" {
 			return &item{msg: fmt.Sprintf("%s; %s", status().Msg(), err.Error()), status: status(), stack: callers()}
