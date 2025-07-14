@@ -1,0 +1,5 @@
+.idea/
+/workspace/
+.Ds_Store
+go.work
+go.work.sum

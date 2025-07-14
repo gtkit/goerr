@@ -91,58 +91,58 @@ func statusText(code int) string {
 	case ErrInternalServer:
 		return "服务器内部错误"
 	case ErrPermission:
-		return "Permission denied"
+		return "权限不足，禁止访问"
 	case ErrParams:
-		return "Illegal params"
+		return "非法参数"
 	case ErrValidateParams:
-		return "Parameter validation failure"
+		return "参数验证失败"
 	case ErrAuthentication:
-		return "Authentication failed"
+		return "身份验证失败"
 	case ErrVipRights:
-		return "Not Vip Rights"
+		return "非会员"
 	case ErrNotFound:
-		return "Not Found"
+		return "没有找到"
 	case ErrAuthenticationHeader:
-		return "Authentication header Illegal"
+		return "认证头格式非法"
 	case ErrAppKey:
-		return "Invalid app key"
+		return "无效应用程序密钥"
 	case ErrSign:
-		return "Invalid signature"
+		return "无效签名"
 	case ErrTooManyRequests:
-		return "Too Many Requests"
+		return "请求过多"
 	case ErrInvalidJson:
-		return "Invalid Json"
+		return "非法json"
 	case ErrTimeout:
-		return "Server response timeout"
+		return "服务器响应超时"
 	case ErrExpired:
-		return "Authentication expired"
+		return "令牌过期"
 	case ErrElasticsearchServer:
-		return "Elasticsearch server error"
+		return "Elasticsearch 服务错误"
 	case ErrElasticsearchDSL:
-		return "Elasticsearch DSL error"
+		return "Elasticsearch DSL 错误"
 	case ErrMysqlServer:
-		return "Mysql server error"
+		return "数据库服务器错误"
 	case ErrMysqlSQL:
-		return "Illegal SQL"
+		return "查询错误"
 	case ErrMongoServer:
-		return "MongoDB server error"
+		return "MongoDB 服务错误"
 	case ErrMongoDSL:
-		return "MongoDB DSL error"
+		return "MongoDB DSL 错误"
 	case ErrRedisServer:
-		return "Redis server error"
+		return "Redis 服务器错误"
 	case ErrKafkaServer:
-		return "Kafka server error"
+		return "Kafka 服务器错误"
 	case ErrKafkaProducer:
-		return "Kafka producer error"
+		return "Kafka 生产者错误"
 	case ErrKafkaConsumer:
-		return "Kafka consumer error"
+		return "Kafka 消费者错误"
 	case ErrRabbitMQServer:
-		return "RabbitMQ server error"
+		return "RabbitMQ 服务器错误"
 	case ErrRabbitMQProducer:
-		return "RabbitMQ producer error"
+		return "RabbitMQ 生产者错误"
 	case ErrRabbitMQConsumer:
-		return "RabbitMQ consumer error"
+		return "RabbitMQ 消费者错误"
 	default:
-		return "Unknown Error"
+		return "未知错误"
 	}
 }

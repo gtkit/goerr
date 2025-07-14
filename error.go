@@ -63,23 +63,37 @@ func (i *item) Format(s fmt.State, verb rune) {
 // New create a new error.
 // err is the original error.
 // status is the error status function defined in errstatuser.go .
-// emsg is the extra message.
+// emsg is the extra message, if it is not empty, it will replace the original error message.
 func New(err error, status func() ErrStatuser, errmsg ...string) Error {
-	var msg string
+	var (
+		msg       string
+		errStatus ErrStatuser
+	)
+
+	if status == nil || status() == nil {
+		errStatus = &ErrStatus{
+			errCode:  0,
+			httpCode: 200,
+			msg:      "~ok~",
+		}
+	} else {
+		errStatus = status()
+	}
+
 	if len(errmsg) > 0 {
 		msg = errmsg[0]
 	}
 
 	if err != nil {
 		if msg == "" {
-			return &item{msg: fmt.Sprintf("%s; %s", status().Msg(), err.Error()), status: status(), stack: callers()}
+			return &item{msg: fmt.Sprintf("%s; %s", errStatus.Msg(), err.Error()), status: errStatus, stack: callers()}
 		}
-		return &item{msg: fmt.Sprintf("%s; %s; %s", msg, status().Msg(), err.Error()), status: status(), stack: callers()}
+		return &item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), status: errStatus, stack: callers()}
 	}
 	if msg == "" {
-		return &item{msg: fmt.Sprintf("%s", status().Msg()), status: status(), stack: callers()}
+		return &item{msg: fmt.Sprintf("%s", errStatus.Msg()), status: errStatus, stack: callers()}
 	}
-	return &item{msg: fmt.Sprintf("%s; %s", msg, status().Msg()), status: status(), stack: callers()}
+	return &item{msg: fmt.Sprintf("%s;", msg), status: errStatus, stack: callers()}
 }
 
 // Errorf create a new error
