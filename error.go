@@ -1,4 +1,3 @@
-// @Author xiaozhaofu 2022/11/1 16:05:00
 package goerr
 
 import (
@@ -18,61 +17,73 @@ func callers() []uintptr {
 // Error an error with caller stack information
 type Error interface {
 	error
-	Status() ErrStatuser
-	ErrCode() int
+	Status() *ErrStatus
+	ErrCode() string
 	ErrMsg() string
 	HttpCode() int
 }
 
-type item struct {
+type Item struct {
 	msg    string
-	status ErrStatuser
+	status *ErrStatus
 	stack  []uintptr
 }
 
-func (i *item) Error() string {
+func (i *Item) Error() string {
 	return i.msg
 }
 
-func (i *item) Status() ErrStatuser {
+func (i *Item) Status() *ErrStatus {
 	return i.status
 }
 
-func (i *item) ErrCode() int {
+func (i *Item) ErrCode() string {
+	if i.status == nil {
+		return "0"
+	}
 	return i.status.ErrCode()
 }
 
-func (i *item) ErrMsg() string {
+func (i *Item) ErrMsg() string {
+	if i.status == nil {
+		return "~ok~"
+	}
 	return i.status.Msg()
 }
 
-func (i *item) HttpCode() int {
+func (i *Item) HttpCode() int {
+	if i.status == nil {
+		return 200
+	}
 	return i.status.HTTPCode()
 }
 
 // Format used by go.uber.org/zap in Verbose
-func (i *item) Format(s fmt.State, verb rune) {
+func (i *Item) Format(s fmt.State, verb rune) {
 	io.WriteString(s, i.msg)
 	io.WriteString(s, "\n")
 
-	for _, pc := range i.stack {
-		fmt.Fprintf(s, "%+v\n", errors.Frame(pc))
+	if i.status != nil {
+		for _, pc := range i.stack {
+			fmt.Fprintf(s, "%+v\n", errors.Frame(pc))
+		}
 	}
+
 }
 
 // New create a new error.
 // err is the original error.
 // status is the error status function defined in errstatuser.go .
 // emsg is the extra message, if it is not empty, it will replace the original error message.
-func New(err error, status func() ErrStatuser, errmsg ...string) Error {
+func New(err error, status func() *ErrStatus, errmsg ...string) *Item {
 	var (
 		msg       string
-		errStatus ErrStatuser
+		errStatus *ErrStatus
 	)
 
 	if status == nil || status() == nil {
 		errStatus = &ErrStatus{
-			errCode:  0,
+			errCode:  "0",
 			httpCode: 200,
 			msg:      "~ok~",
 		}
@@ -86,19 +97,19 @@ func New(err error, status func() ErrStatuser, errmsg ...string) Error {
 
 	if err != nil {
 		if msg == "" {
-			return &item{msg: fmt.Sprintf("%s; %s", errStatus.Msg(), err.Error()), status: errStatus, stack: callers()}
+			return &Item{msg: fmt.Sprintf("%s; %s", errStatus.Msg(), err.Error()), status: errStatus, stack: callers()}
 		}
-		return &item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), status: errStatus, stack: callers()}
+		return &Item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), status: errStatus, stack: callers()}
 	}
 	if msg == "" {
-		return &item{msg: fmt.Sprintf("%s", errStatus.Msg()), status: errStatus, stack: callers()}
+		return &Item{msg: fmt.Sprintf("%s", errStatus.Msg()), status: errStatus, stack: callers()}
 	}
-	return &item{msg: fmt.Sprintf("%s;", msg), status: errStatus, stack: callers()}
+	return &Item{msg: fmt.Sprintf("%s;", msg), status: errStatus, stack: callers()}
 }
 
 // Errorf create a new error
 func Errorf(format string, args ...interface{}) Error {
-	return &item{msg: fmt.Sprintf(format, args...), stack: callers()}
+	return &Item{msg: fmt.Sprintf(format, args...), stack: callers()}
 }
 
 // Wrap with some extra message into err
@@ -107,9 +118,9 @@ func Wrap(err error, msg string) Error {
 		return nil
 	}
 
-	e, ok := err.(*item)
+	e, ok := err.(*Item)
 	if !ok {
-		return &item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), stack: callers()}
+		return &Item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), stack: callers()}
 	}
 
 	e.msg = fmt.Sprintf("%s; %s", msg, e.msg)
@@ -124,9 +135,9 @@ func Wrapf(err error, format string, args ...interface{}) Error {
 
 	msg := fmt.Sprintf(format, args...)
 
-	e, ok := err.(*item)
+	e, ok := err.(*Item)
 	if !ok {
-		return &item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), stack: callers()}
+		return &Item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), stack: callers()}
 	}
 
 	e.msg = fmt.Sprintf("%s; %s", msg, e.msg)
@@ -139,11 +150,11 @@ func WithStack(err error) Error {
 		return nil
 	}
 
-	if e, ok := err.(*item); ok {
+	if e, ok := err.(*Item); ok {
 		return e
 	}
 
-	return &item{msg: err.Error(), stack: callers()}
+	return &Item{msg: err.Error(), stack: callers()}
 }
 
 // Err create a new error with message

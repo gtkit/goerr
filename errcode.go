@@ -45,104 +45,71 @@ ErrStatus
 */
 
 const (
-	ErrNo                   = 10010000
-	ErrInternalServer       = 10010001
-	ErrParams               = 10010002
-	ErrValidateParams       = 10010003
-	ErrInvalidJson          = 10010004
-	ErrAuthentication       = 10010005
-	ErrAuthenticationHeader = 10010006
-	ErrVipRights            = 10010007
-	ErrPermission           = 10010008
-	ErrAppKey               = 10010009
-	ErrSign                 = 10010010
-	ErrExpired              = 10010011
-	ErrTimeout              = 10010012
-	ErrNotFound             = 10010013
-	ErrTooManyRequests      = 10010014
-	ErrRequestFail          = 10010015
+	ErrNo                   string = "10010000"
+	ErrInternalServer       string = "10010001"
+	ErrParams               string = "10010002"
+	ErrValidateParams       string = "10010003"
+	ErrInvalidJson          string = "10010004"
+	ErrAuthentication       string = "10010005"
+	ErrAuthenticationHeader string = "10010006"
+	ErrVipRights            string = "10010007"
+	ErrPermission           string = "10010008"
+	ErrAppKey               string = "10010009"
+	ErrSign                 string = "10010010"
+	ErrExpired              string = "10010011"
+	ErrTimeout              string = "10010012"
+	ErrNotFound             string = "10010013"
+	ErrTooManyRequests      string = "10010014"
+	ErrRequestFail          string = "10010015"
 
-	ErrElasticsearchServer = 10010101
-	ErrElasticsearchDSL    = 10010102
+	ErrElasticsearchServer string = "10010101"
+	ErrElasticsearchDSL    string = "10010102"
 
-	ErrMysqlServer = 10010201
-	ErrMysqlSQL    = 10010202
+	ErrMysqlServer string = "10010201"
+	ErrMysqlSQL    string = "10010202"
 
-	ErrMongoServer = 10010301
-	ErrMongoDSL    = 10010302
+	ErrMongoServer string = "10010301"
+	ErrMongoDSL    string = "10010302"
 
-	ErrRedisServer = 10010401
+	ErrRedisServer string = "10010401"
 
-	ErrKafkaServer   = 10010501
-	ErrKafkaProducer = 10010502
-	ErrKafkaConsumer = 10010503
+	ErrKafkaServer   string = "10010501"
+	ErrKafkaProducer string = "10010502"
+	ErrKafkaConsumer string = "10010503"
 
-	ErrRabbitMQServer   = 10010601
-	ErrRabbitMQProducer = 10010602
-	ErrRabbitMQConsumer = 10010603
+	ErrRabbitMQServer   string = "10010601"
+	ErrRabbitMQProducer string = "10010602"
+	ErrRabbitMQConsumer string = "10010603"
 )
 
-func statusText(code int) string {
-	switch code {
-	case ErrNo:
-		return "OK"
-	case ErrRequestFail:
-		return "请求失败"
-	case ErrInternalServer:
-		return "服务器内部错误"
-	case ErrPermission:
-		return "权限不足，禁止访问"
-	case ErrParams:
-		return "非法参数"
-	case ErrValidateParams:
-		return "参数验证失败"
-	case ErrAuthentication:
-		return "身份验证失败"
-	case ErrVipRights:
-		return "非会员"
-	case ErrNotFound:
-		return "没有找到"
-	case ErrAuthenticationHeader:
-		return "认证头格式非法"
-	case ErrAppKey:
-		return "无效应用程序密钥"
-	case ErrSign:
-		return "无效签名"
-	case ErrTooManyRequests:
-		return "请求过多"
-	case ErrInvalidJson:
-		return "非法json"
-	case ErrTimeout:
-		return "服务器响应超时"
-	case ErrExpired:
-		return "令牌过期"
-	case ErrElasticsearchServer:
-		return "Elasticsearch 服务错误"
-	case ErrElasticsearchDSL:
-		return "Elasticsearch DSL 错误"
-	case ErrMysqlServer:
-		return "数据库服务器错误"
-	case ErrMysqlSQL:
-		return "查询错误"
-	case ErrMongoServer:
-		return "MongoDB 服务错误"
-	case ErrMongoDSL:
-		return "MongoDB DSL 错误"
-	case ErrRedisServer:
-		return "Redis 服务器错误"
-	case ErrKafkaServer:
-		return "Kafka 服务器错误"
-	case ErrKafkaProducer:
-		return "Kafka 生产者错误"
-	case ErrKafkaConsumer:
-		return "Kafka 消费者错误"
-	case ErrRabbitMQServer:
-		return "RabbitMQ 服务器错误"
-	case ErrRabbitMQProducer:
-		return "RabbitMQ 生产者错误"
-	case ErrRabbitMQConsumer:
-		return "RabbitMQ 消费者错误"
-	default:
-		return "未知错误"
-	}
+var codeMessages = map[string]string{
+	ErrNo:                   "No Error",
+	ErrInternalServer:       "Internal Server Error",
+	ErrParams:               "Illegal params",
+	ErrValidateParams:       "Validation Errors",
+	ErrInvalidJson:          "Invalid json",
+	ErrAuthentication:       "Authentication failed",
+	ErrAuthenticationHeader: "Authentication header Illegal",
+	ErrVipRights:            "Not Vip Rights",
+	ErrPermission:           "Permission denied",
+	ErrAppKey:               "Invalid app key",
+	ErrSign:                 "Invalid sign",
+	ErrExpired:              "Token expired",
+	ErrTimeout:              "Server response timeout",
+	ErrNotFound:             "Page not found",
+	ErrTooManyRequests:      "Too Many Requests",
+	ErrRequestFail:          "Request Fail",
+	ErrElasticsearchServer:  "Elasticsearch server error",
+	ErrElasticsearchDSL:     "Elasticsearch DSL error",
+	ErrMysqlServer:          "Mysql server error",
+	ErrMysqlSQL:             "Illegal SQL",
+	ErrMongoServer:          "MongoDB server error",
+	ErrMongoDSL:             "MongoDB DSL error",
+	ErrRedisServer:          "Redis server error",
+	ErrKafkaServer:          "Kafka server error",
+	ErrKafkaProducer:        "Kafka Producer error",
+	ErrKafkaConsumer:        "Kafka Consumer error",
+	ErrRabbitMQServer:       "RabbitMQ server error",
+	ErrRabbitMQProducer:     "RabbitMQ Producer error",
+	ErrRabbitMQConsumer:     "RabbitMQ Consumer error",
 }
