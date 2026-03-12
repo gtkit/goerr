@@ -1,11 +1,9 @@
 package goerr
 
 import (
+	"errors"
 	"fmt"
-	"io"
 	"runtime"
-
-	"github.com/pkg/errors"
 )
 
 func callers() []uintptr {
@@ -18,7 +16,7 @@ func callers() []uintptr {
 type Error interface {
 	error
 	Status() *ErrStatus
-	ErrCode() string
+	ErrCode() int32
 	ErrMsg() string
 	HttpCode() int
 }
@@ -37,9 +35,9 @@ func (i *Item) Status() *ErrStatus {
 	return i.status
 }
 
-func (i *Item) ErrCode() string {
+func (i *Item) ErrCode() int32 {
 	if i.status == nil {
-		return "0"
+		return 0
 	}
 	return i.status.ErrCode()
 }
@@ -59,17 +57,17 @@ func (i *Item) HttpCode() int {
 }
 
 // Format used by go.uber.org/zap in Verbose
-func (i *Item) Format(s fmt.State, verb rune) {
-	io.WriteString(s, i.msg)
-	io.WriteString(s, "\n")
-
-	if i.status != nil {
-		for _, pc := range i.stack {
-			fmt.Fprintf(s, "%+v\n", errors.Frame(pc))
-		}
-	}
-
-}
+//func (i *Item) Format(s fmt.State, verb rune) {
+//	io.WriteString(s, i.msg)
+//	io.WriteString(s, "\n")
+//
+//	if i.status != nil {
+//		for _, pc := range i.stack {
+//			fmt.Fprintf(s, "%+v\n", errors.Frame(pc))
+//		}
+//	}
+//
+//}
 
 // New create a new error.
 // err is the original error.
@@ -83,7 +81,7 @@ func New(err error, status func() *ErrStatus, errmsg ...string) *Item {
 
 	if status == nil || status() == nil {
 		errStatus = &ErrStatus{
-			errCode:  "0",
+			errCode:  0,
 			httpCode: 200,
 			msg:      "~ok~",
 		}
@@ -118,8 +116,8 @@ func Wrap(err error, msg string) Error {
 		return nil
 	}
 
-	e, ok := err.(*Item)
-	if !ok {
+	var e *Item
+	if ok := errors.As(err, &e); !ok {
 		return &Item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), stack: callers()}
 	}
 
@@ -135,8 +133,8 @@ func Wrapf(err error, format string, args ...interface{}) Error {
 
 	msg := fmt.Sprintf(format, args...)
 
-	e, ok := err.(*Item)
-	if !ok {
+	var e *Item
+	if ok := errors.As(err, &e); !ok {
 		return &Item{msg: fmt.Sprintf("%s; %s", msg, err.Error()), stack: callers()}
 	}
 
@@ -150,7 +148,7 @@ func WithStack(err error) Error {
 		return nil
 	}
 
-	if e, ok := err.(*Item); ok {
+	if e, ok := AsType[*Item](err); ok {
 		return e
 	}
 
@@ -167,13 +165,13 @@ func Is(err, target error) bool {
 }
 
 func As(err error, target any) bool {
-	return errors.As(err, target)
+	return errors.As(err, &target)
 }
 
-func WithMessage(err error, msg string) error {
-	return errors.WithMessage(err, msg)
+func AsType[E error](err error) (E, bool) {
+	return errors.AsType[E](err)
 }
 
 func WithMsg(err error, msg string) error {
-	return errors.WithMessage(err, msg)
+	return errors.New(msg + ": " + err.Error())
 }

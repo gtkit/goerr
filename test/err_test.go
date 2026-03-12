@@ -10,7 +10,7 @@ func TestName(t *testing.T) {
 	err := goerr.Err("test error")
 	errwithmsg := goerr.WithMsg(err, "with message")
 
-	myerr := goerr.New(errwithmsg, goerr.InvalidJson(), "http error")
+	myerr := goerr.New(errwithmsg, goerr.InvalidJson, "http error")
 	errcode := myerr.Status().ErrCode()
 	t.Log("errcode:", errcode)
 

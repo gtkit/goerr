@@ -45,44 +45,47 @@ ErrStatus
 */
 
 const (
-	ErrNo                   string = "10010000"
-	ErrInternalServer       string = "10010001"
-	ErrParams               string = "10010002"
-	ErrValidateParams       string = "10010003"
-	ErrInvalidJson          string = "10010004"
-	ErrAuthentication       string = "10010005"
-	ErrAuthenticationHeader string = "10010006"
-	ErrVipRights            string = "10010007"
-	ErrPermission           string = "10010008"
-	ErrAppKey               string = "10010009"
-	ErrSign                 string = "10010010"
-	ErrExpired              string = "10010011"
-	ErrTimeout              string = "10010012"
-	ErrNotFound             string = "10010013"
-	ErrTooManyRequests      string = "10010014"
-	ErrRequestFail          string = "10010015"
+	ErrNo                   int32 = 1001000
+	ErrInternalServer       int32 = 10010001
+	ErrParams               int32 = 10010002
+	ErrValidateParams       int32 = 10010003
+	ErrInvalidJson          int32 = 10010004
+	ErrAuthentication       int32 = 10010005
+	ErrAuthenticationHeader int32 = 10010006
+	ErrVipRights            int32 = 10010007
+	ErrPermission           int32 = 10010008
+	ErrAppKey               int32 = 10010009
+	ErrSign                 int32 = 10010010
+	ErrExpired              int32 = 10010011
+	ErrTimeout              int32 = 10010012
+	ErrNotFound             int32 = 10010013
+	ErrTooManyRequests      int32 = 10010014
+	ErrRequestFail          int32 = 10010015
 
-	ErrElasticsearchServer string = "10010101"
-	ErrElasticsearchDSL    string = "10010102"
+	ErrElasticsearchServer int32 = 10010101
+	ErrElasticsearchDSL    int32 = 10010102
 
-	ErrMysqlServer string = "10010201"
-	ErrMysqlSQL    string = "10010202"
+	ErrMysqlServer int32 = 10010201
+	ErrMysqlSQL    int32 = 10010202
+	ErrMysqlQuery  int32 = 10010203
 
-	ErrMongoServer string = "10010301"
-	ErrMongoDSL    string = "10010302"
+	ErrMongoServer int32 = 10010301
+	ErrMongoDSL    int32 = 10010302
+	ErrMongoQuery  int32 = 10010303
 
-	ErrRedisServer string = "10010401"
+	ErrRedisServer int32 = 10010401
+	ErrRedisQuery  int32 = 10010402
 
-	ErrKafkaServer   string = "10010501"
-	ErrKafkaProducer string = "10010502"
-	ErrKafkaConsumer string = "10010503"
+	ErrKafkaServer   int32 = 10010501
+	ErrKafkaProducer int32 = 10010502
+	ErrKafkaConsumer int32 = 10010503
 
-	ErrRabbitMQServer   string = "10010601"
-	ErrRabbitMQProducer string = "10010602"
-	ErrRabbitMQConsumer string = "10010603"
+	ErrRabbitMQServer   int32 = 10010601
+	ErrRabbitMQProducer int32 = 10010602
+	ErrRabbitMQConsumer int32 = 10010603
 )
 
-var codeMessages = map[string]string{
+var codeMessages = map[int32]string{
 	ErrNo:                   "No Error",
 	ErrInternalServer:       "Internal Server Error",
 	ErrParams:               "Illegal params",
@@ -103,9 +106,12 @@ var codeMessages = map[string]string{
 	ErrElasticsearchDSL:     "Elasticsearch DSL error",
 	ErrMysqlServer:          "Mysql server error",
 	ErrMysqlSQL:             "Illegal SQL",
+	ErrMysqlQuery:           "Mysql query error",
 	ErrMongoServer:          "MongoDB server error",
 	ErrMongoDSL:             "MongoDB DSL error",
+	ErrMongoQuery:           "MongoDB query error",
 	ErrRedisServer:          "Redis server error",
+	ErrRedisQuery:           "Redis query error",
 	ErrKafkaServer:          "Kafka server error",
 	ErrKafkaProducer:        "Kafka Producer error",
 	ErrKafkaConsumer:        "Kafka Consumer error",

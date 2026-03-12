@@ -5,12 +5,12 @@ import (
 )
 
 type ErrStatus struct {
-	errCode  string
+	errCode  int32
 	httpCode int
 	msg      string
 }
 
-func (e *ErrStatus) ErrCode() string {
+func (e *ErrStatus) ErrCode() int32 {
 	return e.errCode
 }
 
@@ -25,7 +25,7 @@ func (e *ErrStatus) Msg() string {
 // code 自定义错误码.
 // httpCode HTTP状态码.
 // msg 自定义错误信息.
-func setError(code string, httpCode int) *ErrStatus {
+func setError(code int32, httpCode int) *ErrStatus {
 	return &ErrStatus{
 		errCode:  code,
 		httpCode: httpCode,
@@ -132,6 +132,11 @@ func MysqlSQL() *ErrStatus {
 	return setError(ErrMysqlSQL, http.StatusInternalServerError)
 }
 
+// MysqlQuery mysql SQL 查询错误.
+func MysqlQuery() *ErrStatus {
+	return setError(ErrMysqlQuery, http.StatusOK)
+}
+
 // MongoServer mongo 服务器错误.
 func MongoServer() *ErrStatus {
 	return setError(ErrMongoServer, http.StatusInternalServerError)
@@ -142,9 +147,19 @@ func MongoDSL() *ErrStatus {
 	return setError(ErrMongoDSL, http.StatusInternalServerError)
 }
 
+// MongoQuery mongo 查询错误.
+func MongoQuery() *ErrStatus {
+	return setError(ErrMongoQuery, http.StatusOK)
+}
+
 // RedisServer redis 服务器错误.
 func RedisServer() *ErrStatus {
 	return setError(ErrRedisServer, http.StatusInternalServerError)
+}
+
+// RedisQuery redis 查询错误.
+func RedisQuery() *ErrStatus {
+	return setError(ErrRedisQuery, http.StatusOK)
 }
 
 // KafkaServer kafka 服务器错误.
