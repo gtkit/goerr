@@ -19,13 +19,16 @@ type Error interface {
 
 // Item 是 Error 的默认实现，不可变——所有字段在构造后不再修改。
 type Item struct {
-	msg    string
-	status *Status
-	cause  error // 原始错误，支持 Unwrap
-	stack  []uintptr
+	// msg 供 Error() 使用：完整描述，常含 cause，用于日志。
+	msg string
+	// clientMsg 供 Message() 优先返回：对外短文案；空则回退 StatusInfo().Msg()。
+	clientMsg string
+	status    *Status
+	cause     error // 原始错误，支持 Unwrap
+	stack     []uintptr
 }
 
-// Error 实现标准库 error 接口, 给程序员查看错误详情。
+// Error 实现 error 接口，返回完整描述（常含 cause），用于日志与 fmt 打印。
 func (i *Item) Error() string { return i.msg }
 
 func (i *Item) StatusInfo() *Status {
@@ -39,8 +42,13 @@ func (i *Item) Code() Code {
 	return i.StatusInfo().Code()
 }
 
-// Message 返回业务状态码对应的默认消息，给客户端展示。
+// Message 返回面向调用方/客户端的短文案（不含底层错误细节时由构造逻辑保证）。
+// 若构造时写入了 clientMsg 则优先返回；否则使用当前 Status 的默认文案。
+// 与 Error() 的分工见 README「Message 与 Error 的约定」。
 func (i *Item) Message() string {
+	if i.clientMsg != "" {
+		return i.clientMsg
+	}
 	return i.StatusInfo().Msg()
 }
 
@@ -114,15 +122,14 @@ func resolveStatus(status any, fallback *Status) *Status {
 // New 创建带业务状态码的错误。
 //
 //	err    — 原始错误（可为 nil，此时构造一个纯状态错误）。
-//	status — 支持 *Status 或 func() *Status（如 StatusInternalServer / StatusInternalServer()）。
-//	msgs   — 可选的自定义消息，若提供则覆盖 Status 的默认消息展示。
+//	status — *Status，一般为 StatusXxx() 的返回值。
+//	msgs   — 可选；非空则作为对外文案（Message()），并参与 Error()；见 README「Message() 与 Error()」约定。
 //
 // 示例:
 //
-//	goerr.New(err, goerr.StatusInternalServer)
+//	goerr.New(err, goerr.StatusInternalServer())
 //	goerr.New(err, goerr.StatusParams(), "user_id is required")
-//	goerr.New(nil, goerr.StatusNotFound, "order not found")
-// New 接受 *Status 指针（StatusXxx() 返回的就是 *Status）
+//	goerr.New(nil, goerr.StatusNotFound(), "order not found")
 func New(err error, status *Status, msgs ...string) *Item {
 	resolvedStatus := resolveStatus(status, StatusOK())
 
@@ -133,17 +140,19 @@ func New(err error, status *Status, msgs ...string) *Item {
 
 	if err != nil {
 		return &Item{
-			msg:    msg + ": " + err.Error(),
-			status: resolvedStatus,
-			cause:  err,
-			stack:  callers(3),
+			msg:       msg + ": " + err.Error(),
+			clientMsg: msg,
+			status:    resolvedStatus,
+			cause:     err,
+			stack:     callers(3),
 		}
 	}
 	return &Item{
-		msg:    msg,
-		status: resolvedStatus,
-		cause:  nil,
-		stack:  callers(3),
+		msg:       msg,
+		clientMsg: msg,
+		status:    resolvedStatus,
+		cause:     nil,
+		stack:     callers(3),
 	}
 }
 
@@ -156,10 +165,12 @@ func NewFn(err error, statusFn func() *Status, msgs ...string) *Item {
 // status 支持 *Status 或 func() *Status。
 func Newf(status any, format string, args ...any) *Item {
 	resolvedStatus := resolveStatus(status, StatusOK())
+	out := fmt.Sprintf(format, args...)
 	return &Item{
-		msg:    fmt.Sprintf(format, args...),
-		status: resolvedStatus,
-		stack:  callers(3),
+		msg:       out,
+		clientMsg: out,
+		status:    resolvedStatus,
+		stack:     callers(3),
 	}
 }
 
@@ -173,16 +184,18 @@ func Wrap(err error, msg string) *Item {
 
 	if e, ok := errors.AsType[*Item](err); ok {
 		return &Item{
-			msg:    msg + ": " + e.msg,
-			status: e.status,
-			cause:  err, // 保留完整 cause 链
-			stack:  callers(3),
+			msg:       msg + ": " + e.msg,
+			clientMsg: e.Message(),
+			status:    e.status,
+			cause:     err, // 保留完整 cause 链
+			stack:     callers(3),
 		}
 	}
 	return &Item{
-		msg:   msg + ": " + err.Error(),
-		cause: err,
-		stack: callers(3),
+		msg:       msg + ": " + err.Error(),
+		clientMsg: msg,
+		cause:     err,
+		stack:     callers(3),
 	}
 }
 
@@ -196,16 +209,18 @@ func Wrapf(err error, format string, args ...any) *Item {
 	msg := fmt.Sprintf(format, args...)
 	if e, ok := errors.AsType[*Item](err); ok {
 		return &Item{
-			msg:    msg + ": " + e.msg,
-			status: e.status,
-			cause:  err,
-			stack:  callers(3),
+			msg:       msg + ": " + e.msg,
+			clientMsg: e.Message(),
+			status:    e.status,
+			cause:     err,
+			stack:     callers(3),
 		}
 	}
 	return &Item{
-		msg:   msg + ": " + err.Error(),
-		cause: err,
-		stack: callers(3),
+		msg:       msg + ": " + err.Error(),
+		clientMsg: msg,
+		cause:     err,
+		stack:     callers(3),
 	}
 }
 
@@ -217,11 +232,13 @@ func WrapStatus(err error, status any) *Item {
 		return nil
 	}
 	resolvedStatus := resolveStatus(status, StatusInternalServer())
+	cm := resolvedStatus.Msg()
 	return &Item{
-		msg:    resolvedStatus.Msg() + ": " + err.Error(),
-		status: resolvedStatus,
-		cause:  err,
-		stack:  callers(3),
+		msg:       cm + ": " + err.Error(),
+		clientMsg: cm,
+		status:    resolvedStatus,
+		cause:     err,
+		stack:     callers(3),
 	}
 }
 
@@ -233,7 +250,12 @@ func WithStack(err error) *Item {
 	if e, ok := errors.AsType[*Item](err); ok {
 		return e
 	}
-	return &Item{msg: err.Error(), cause: err, stack: callers(3)}
+	return &Item{
+		msg:       err.Error(),
+		clientMsg: err.Error(),
+		cause:     err,
+		stack:     callers(3),
+	}
 }
 
 // --- 标准库 errors 包的便捷透传 ---

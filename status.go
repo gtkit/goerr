@@ -112,16 +112,14 @@ func StatusAlreadyExists() *Status   { return &statusAlreadyExists }
 func StatusServiceUnavailable() *Status {
 	return &statusServiceUnavailable
 }
-func StatusDependencyUnavailable() *Status {
-	return &statusDependencyUnavailable
-}
-func StatusCanceled() *Status         { return &statusCanceled }
-func StatusDeadlineExceeded() *Status { return &statusDeadlineExceeded }
-func StatusTokenMissing() *Status     { return &statusTokenMissing }
-func StatusTokenInvalid() *Status     { return &statusTokenInvalid }
-func StatusTokenRevoked() *Status     { return &statusTokenRevoked }
-func StatusDuplicateRequest() *Status { return &statusDuplicateRequest }
-func StatusRecordNotFound() *Status   { return &statusRecordNotFound }
+func StatusDependencyUnavailable() *Status { return &statusDependencyUnavailable }
+func StatusCanceled() *Status              { return &statusCanceled }
+func StatusDeadlineExceeded() *Status      { return &statusDeadlineExceeded }
+func StatusTokenMissing() *Status          { return &statusTokenMissing }
+func StatusTokenInvalid() *Status          { return &statusTokenInvalid }
+func StatusTokenRevoked() *Status          { return &statusTokenRevoked }
+func StatusDuplicateRequest() *Status      { return &statusDuplicateRequest }
+func StatusRecordNotFound() *Status        { return &statusRecordNotFound }
 
 func StatusElasticsearchServer() *Status { return &statusElasticsearchServer }
 func StatusElasticsearchDSL() *Status    { return &statusElasticsearchDSL }
