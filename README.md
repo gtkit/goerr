@@ -3,6 +3,9 @@
 统一业务错误码处理包，提供结构化的业务错误码、HTTP 响应策略和错误消息封装。  
 与标准库 `errors` 配合，支持错误链、`errors.Is` / `errors.As` 以及 `%+v` 输出调用栈。
 
+**版本说明与破坏性变更见 [CHANGELOG.md](./CHANGELOG.md)。**  
+**合并与发版前测试清单见 [CONTRIBUTING.md](./CONTRIBUTING.md)。**
+
 ---
 
 ## Message() 与 Error()：团队约定（必读）
@@ -37,6 +40,50 @@ log.Printf("request failed: %v", item.Error())
 
 ---
 
+## New、WrapStatus、Wrap：内部规范（必读）
+
+| API | 何时使用 |
+| --- | --- |
+| **`New(err, *Status, msgs...)`** | **业务代码里新建「带业务码」的错误**：有/无底层 `err` 均可；需要自定义对外文案时用 `msgs`。 |
+| **`WrapStatus(err, *Status)`** | **已有任意 `error`，在中间件 / 边界统一补上业务状态**（例如把第三方库错误映射到本服务的 `Status`）。`status == nil` 时等价于 `StatusInternalServer()`。 |
+| **`Wrap` / `Wrapf`** | **仅追加英文/中文上下文**，不参与「赋业务码」。若内层已是 `*Item`，会保留其 `Status` 与对外 `Message()`。 |
+
+**禁止（除非经过网关纠正）：**
+
+- **`Wrap` / `Wrapf` 作用在「非 `*Item`」的普通 `error` 上时**，得到的结果 **没有业务 `Status`**（`Code()` 会落在默认 OK 语义上），**不得直接作为「业务错误」交给统一响应层返回给客户端**。
+- 正确做法：先用 **`WrapStatus(err, goerr.StatusXxx())`** 或 **`New(err, goerr.StatusXxx())`** 赋予业务码，再视需要 **`Wrap`** 追加调用链说明；或在网关根据错误类型分支映射到合法 `*Item`。
+
+**动态类型（配置、反射、`*Status` 与 `func() *Status` 混用）**：使用 **`ResolveStatus`**、**`NewFrom`**、**`NewfFrom`**、**`WrapStatusFrom`**，通过 **`error`** 表达失败，**避免**向 `Newf` 等传入错误类型。
+
+---
+
+## 网关：对 Message() 做截断与脱敏
+
+下游传入的自定义 `msgs`、或未来扩展的文案，**不得未经处理**直接进公网响应。建议在 **BFF / API 网关** 对 **`Message()`** 的结果调用：
+
+```go
+msg := item.Message()
+safe := goerr.SanitizeForClient(msg, goerr.SanitizeOptions{
+	MaxRunes:    256,              // 按产品约定调整；0 或缺省时用 DefaultMaxMessageRunes
+	RedactPhone: true,
+	RedactEmail: true,
+})
+// 将 safe 写入 JSON `message` 字段
+```
+
+本包提供 **手机号、邮箱** 的简单占位替换与 **Unicode 安全截断**；身份证、银行卡、SQL 片段、内部 token 等请在业务层或专用网关策略中扩展。
+
+---
+
+## 日志：Error() 与 PII
+
+`Error()` 常包含 **cause 链全文**，容易带上 **手机号、邮箱、SQL、路径** 等敏感信息。建议：
+
+1. 落库/落盘前对字符串调用 **`goerr.RedactForLog(err.Error())`**（或接入日志平台的脱敏管道）；  
+2. 与 **日志分级、留存周期、访问审计** 策略一起使用，**不要**把原始 `Error()` 直接暴露给非运维角色。
+
+---
+
 ## 错误码规范
 
 ```
@@ -58,11 +105,13 @@ log.Printf("request failed: %v", item.Error())
 
 构造方式简述：
 
-- **`New(err, status *Status, msgs...)`**：最常见；`status` 传 **`StatusMysqlServer()`** 这类「函数调用的返回值」（`*Status`）。可选 `msgs` 覆盖默认对外文案（影响 `Message()` / 无 cause 时的 `Error()`）。
+- **`New(err, status *Status, msgs...)`**：最常见；`status` 传 **`StatusMysqlServer()`** 的返回值。`status == nil` 时视为 **`StatusOK()`**。
 - **`NewFn(err, statusFn, msgs...)`**：传入 **`StatusMysqlServer`** 函数本身，等价于在内部调用 `statusFn()`。
-- **`Newf(status, format, args...)`**：无底层 `cause`，仅格式化一条消息（`Message()` 与 `Error()` 通常相同）。
-- **`Wrap` / `Wrapf`**：在已有 `error` 上追加英文/中文上下文；若内层已是 `*Item`，会保留其业务 `Status` 与 **`Message()`**（对外文案仍以内层为准，外层拼在 **`Error()`** 里）。
-- **`WrapStatus(err, status)`**：给任意错误补上业务状态（适合中间件统一包装）。
+- **`Newf(status *Status, format, args...)`**：无底层 `cause`，仅格式化一条消息；`status == nil` 时为 **`StatusOK()`**。
+- **`NewFrom` / `NewfFrom`**：需要 **`ResolveStatus`** 语义时使用（返回 **`error`**）。
+- **`Wrap` / `Wrapf`**：在已有 `error` 上追加上下文；见上文「禁止」说明。
+- **`WrapStatus(err, *Status)`**：给任意错误补上业务状态；`nil` 时用 **`StatusInternalServer()`**。
+- **`WrapStatusFrom`**：与 `WrapStatus` 相同语义，但 `status` 可为 `any` 并由 **`ResolveStatus`** 解析。
 
 ---
 
@@ -86,14 +135,14 @@ err = goerr.Newf(goerr.StatusParams(), "field %q is required", "name")
 // 包装已有错误（日志更详细；若内层是 *Item，对外 Message 仍读内层）
 err = goerr.Wrap(err, "query users")
 
-// 为错误补充业务状态码
+// 为错误补充业务状态码（适合「任意 error → 业务码」）
 err = goerr.WrapStatus(err, goerr.StatusRedisServer())
 
 // 组装统一响应（示意：用 Message，不要用 Error 给前端）
 if item, ok := goerr.AsItem(err); ok {
 	code := item.Code()       // 业务错误码 → JSON `code`
 	http := item.HTTPStatus() // 协议层 HTTP 状态（多数业务场景仍为 200）
-	msg := item.Message()     // → JSON `message`，给客户端看
+	msg := item.Message()     // → JSON `message`，给客户端看（建议再经 SanitizeForClient）
 	_ = code
 	_ = http
 	_ = msg
@@ -157,11 +206,19 @@ func mapDBError(err error) error {
 
 ---
 
+## 测试矩阵与发布
+
+详见 **[CONTRIBUTING.md](./CONTRIBUTING.md)**（`go test`、`race`、fuzz、`go vet`）。  
+版本历史与迁移说明见 **[CHANGELOG.md](./CHANGELOG.md)**。
+
+---
+
 ## 设计要点
 
 - **零外部依赖** — 仅使用标准库
 - **Status 预构建单例** — `StatusXxx()` 返回包级别指针，零堆分配；预构建业务错误默认 HTTP `200`
 - **Item 不可变** — `Wrap` 不修改原始错误，并发安全无需锁
 - **Message / Error 分工** — 见上文「Message() 与 Error()」约定
+- **严格类型** — `Newf` / `WrapStatus` 使用 `*Status`；动态解析用 `*From` / `ResolveStatus`
 - **Unwrap 支持** — 完整兼容 `errors.Is` / `errors.As` 错误链
 - **`%+v` 调用栈** — 配合 zap 等日志库输出完整堆栈与 cause

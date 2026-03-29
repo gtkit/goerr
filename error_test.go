@@ -72,13 +72,11 @@ func TestNewf(t *testing.T) {
 	}
 }
 
-func TestNewf_invalidStatusPanics(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatal("expected panic for unsupported status type")
-		}
-	}()
-	Newf(struct{}{}, "x")
+func TestNewf_nilUsesOK(t *testing.T) {
+	item := Newf(nil, "only %s", "text")
+	if item.StatusInfo().Code() != ErrNo {
+		t.Errorf("nil status should be StatusOK: %v", item.Code())
+	}
 }
 
 func TestWrap_innerItem_preservesClientMessage(t *testing.T) {

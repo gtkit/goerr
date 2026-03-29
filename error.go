@@ -44,7 +44,7 @@ func (i *Item) Code() Code {
 
 // Message 返回面向调用方/客户端的短文案（不含底层错误细节时由构造逻辑保证）。
 // 若构造时写入了 clientMsg 则优先返回；否则使用当前 Status 的默认文案。
-// 与 Error() 的分工见 README「Message 与 Error 的约定」。
+// 与 Error() 的分工见 README「Message() 与 Error()：团队约定」；网关脱敏见「网关：对 Message() 做截断与脱敏」。
 func (i *Item) Message() string {
 	if i.clientMsg != "" {
 		return i.clientMsg
@@ -94,31 +94,6 @@ func callers(skip int) []uintptr {
 	return pcs[:n]
 }
 
-// resolveStatus 支持两种状态传法：
-//   - *Status（如 NewStatus(...) 的结果）
-//   - func() *Status（如 StatusMysqlServer 或 StatusMysqlServer() 的函数值）
-func resolveStatus(status any, fallback *Status) *Status {
-	switch s := status.(type) {
-	case nil:
-		return fallback
-	case *Status:
-		if s == nil {
-			return fallback
-		}
-		return s
-	case func() *Status:
-		if s == nil {
-			return fallback
-		}
-		if resolved := s(); resolved != nil {
-			return resolved
-		}
-		return fallback
-	default:
-		panic(fmt.Sprintf("goerr: unsupported status type %T, want *Status or func() *Status", status))
-	}
-}
-
 // New 创建带业务状态码的错误。
 //
 //	err    — 原始错误（可为 nil，此时构造一个纯状态错误）。
@@ -131,7 +106,10 @@ func resolveStatus(status any, fallback *Status) *Status {
 //	goerr.New(err, goerr.StatusParams(), "user_id is required")
 //	goerr.New(nil, goerr.StatusNotFound(), "order not found")
 func New(err error, status *Status, msgs ...string) *Item {
-	resolvedStatus := resolveStatus(status, StatusOK())
+	resolvedStatus := status
+	if resolvedStatus == nil {
+		resolvedStatus = StatusOK()
+	}
 
 	msg := resolvedStatus.Msg()
 	if len(msgs) > 0 && msgs[0] != "" {
@@ -162,9 +140,12 @@ func NewFn(err error, statusFn func() *Status, msgs ...string) *Item {
 }
 
 // Newf 创建带格式化消息的状态错误（无底层 cause）。
-// status 支持 *Status 或 func() *Status。
-func Newf(status any, format string, args ...any) *Item {
-	resolvedStatus := resolveStatus(status, StatusOK())
+// status 为 nil 时使用 [StatusOK]。
+func Newf(status *Status, format string, args ...any) *Item {
+	resolvedStatus := status
+	if resolvedStatus == nil {
+		resolvedStatus = StatusOK()
+	}
 	out := fmt.Sprintf(format, args...)
 	return &Item{
 		msg:       out,
@@ -226,12 +207,16 @@ func Wrapf(err error, format string, args ...any) *Item {
 
 // WrapStatus 为已有错误附加业务状态码。
 // 适用于在中间件或 handler 层为底层错误补充 HTTP 状态信息。
-// status 支持 *Status 或 func() *Status。
-func WrapStatus(err error, status any) *Item {
+// status 为 nil 时使用 [StatusInternalServer]。
+// 若需在运行时解析 *Status / func() *Status 且避免类型错误，请使用 [WrapStatusFrom]。
+func WrapStatus(err error, status *Status) *Item {
 	if err == nil {
 		return nil
 	}
-	resolvedStatus := resolveStatus(status, StatusInternalServer())
+	resolvedStatus := status
+	if resolvedStatus == nil {
+		resolvedStatus = StatusInternalServer()
+	}
 	cm := resolvedStatus.Msg()
 	return &Item{
 		msg:       cm + ": " + err.Error(),
