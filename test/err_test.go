@@ -6,20 +6,21 @@ import (
 	"github.com/gtkit/goerr"
 )
 
-func TestName(t *testing.T) {
-	err := goerr.Err("test error")
-	errwithmsg := goerr.WithMsg(err, "with message")
+func TestItemStatus(t *testing.T) {
+	cause := goerr.Newf(goerr.StatusParams, "bad field")
+	item := goerr.New(cause, goerr.StatusInvalidJson, "http error")
 
-	myerr := goerr.New(errwithmsg, goerr.InvalidJson, "http error")
-	errcode := myerr.Status().ErrCode()
-	t.Log("errcode:", errcode)
-
-	httpcode := myerr.Status().HTTPCode()
-	t.Log("httpcode:", httpcode)
-
-	msg := myerr.Status().Msg()
-	t.Log("msg:", msg)
-
-	errmsg := myerr.Error()
-	t.Log("errmsg:", errmsg)
+	if code := item.Code(); code != goerr.ErrInvalidJson {
+		t.Errorf("Code() = %v, want ErrInvalidJson", code)
+	}
+	if http := item.HTTPStatus(); http != goerr.StatusInvalidJson().HTTPCode() {
+		t.Errorf("HTTPStatus() = %d", http)
+	}
+	if msg := item.Message(); msg == "" {
+		t.Error("Message() empty")
+	}
+	if item.Error() == "" {
+		t.Error("Error() empty")
+	}
+	t.Log("code:", item.Code(), "http:", item.HTTPStatus(), "msg:", item.Message(), "err:", item.Error())
 }
