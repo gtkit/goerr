@@ -14,7 +14,7 @@ type Error interface {
 	StatusInfo() *Status
 	Code() Code
 	Message() string
-	HTTPStatus() int
+	HTTPCode() int
 }
 
 // Item 是 Error 的默认实现，不可变——所有字段在构造后不再修改。
@@ -52,7 +52,7 @@ func (i *Item) Message() string {
 	return i.StatusInfo().Msg()
 }
 
-func (i *Item) HTTPStatus() int {
+func (i *Item) HTTPCode() int {
 	return i.StatusInfo().HTTPCode()
 }
 

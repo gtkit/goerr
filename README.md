@@ -21,7 +21,7 @@
 
 1. **`Message()`** 应尽量稳定、可读、**不暴露内部实现细节**（例如不要把数据库驱动返回的英文原句直接当作主提示）。有底层错误时，`New` 会把「自定义或 Status 默认文案」放在 `Message()`，把「文案 + 底层错误」放在 `Error()` 供日志使用。
 2. **`Error()`** 实现标准库的 `error` 接口，适合**排障**：通常包含更多上下文，例如 `New(err, ...)` 时会把 `err.Error()` 拼进全文。
-3. 业务网关或 BFF 组装 HTTP 响应时，请用 **`Code()` + `Message()` + `HTTPStatus()`**（以及你们协议里约定的字段名）；**不要**把 `Error()` 整段直接回给前端，除非你们明确允许暴露内部信息。
+3. 业务网关或 BFF 组装 HTTP 响应时，请用 **`Code()` + `Message()` + `HTTPCode()`**（以及你们协议里约定的字段名）；**不要**把 `Error()` 整段直接回给前端，除非你们明确允许暴露内部信息。
 4. 开发排查问题时，请打印 **`Error()`** 或使用 **`fmt.Sprintf("%+v", item)`**（若需栈与 cause 信息），**不要**只看 `Message()`，否则会丢掉底层原因。
 
 下面示例演示「响应体用 Message，日志用 Error」：
@@ -141,7 +141,7 @@ err = goerr.WrapStatus(err, goerr.StatusRedisServer())
 // 组装统一响应（示意：用 Message，不要用 Error 给前端）
 if item, ok := goerr.AsItem(err); ok {
 	code := item.Code()       // 业务错误码 → JSON `code`
-	http := item.HTTPStatus() // 协议层 HTTP 状态（多数业务场景仍为 200）
+	http := item.HTTPCode() // 协议层 HTTP 状态码（多数业务场景仍为 200）
 	msg := item.Message()     // → JSON `message`，给客户端看（建议再经 SanitizeForClient）
 	_ = code
 	_ = http
