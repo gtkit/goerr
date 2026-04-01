@@ -245,6 +245,10 @@ func WithStack(err error) *Item {
 
 // --- 标准库 errors 包的便捷透传 ---
 
+func Err(e string) error {
+	return errors.New(e)
+}
+
 // Is 等价于 errors.Is。
 func Is(err, target error) bool {
 	return errors.Is(err, target)
