@@ -10,6 +10,14 @@ type Status struct {
 	msg      string
 }
 
+// NewStatus 创建自定义 Status，用于业务方扩展错误码。
+// code 不做强制校验，业务方可自由定义编码规范。
+// 如需校验是否符合本库默认编码规范，可先调用 ValidateCode。
+// 统一响应体内的业务错误建议使用 http.StatusOK；仅协议级场景再使用非 200。
+func NewStatus(code Code, httpCode int, msg string) *Status {
+	return &Status{code: code, httpCode: httpCode, msg: msg}
+}
+
 func mustValidCode(code Code) {
 	if err := ValidateCode(code); err != nil {
 		panic(err)
@@ -56,11 +64,11 @@ var (
 	statusValidateParams = newStatus(ErrValidateParams, http.StatusUnprocessableEntity)
 
 	// 认证错误 → HTTP 401 Unauthorized
-	statusAuth        = newStatus(ErrAuthentication, http.StatusUnauthorized)
-	statusAuthHeader  = newStatus(ErrAuthenticationHeader, http.StatusUnauthorized)
-	statusAppKey      = newStatus(ErrAppKey, http.StatusUnauthorized)
-	statusSign        = newStatus(ErrSign, http.StatusUnauthorized)
-	statusAuthExpired = newStatus(ErrExpired, http.StatusUnauthorized)
+	statusAuth         = newStatus(ErrAuthentication, http.StatusUnauthorized)
+	statusAuthHeader   = newStatus(ErrAuthenticationHeader, http.StatusUnauthorized)
+	statusAppKey       = newStatus(ErrAppKey, http.StatusUnauthorized)
+	statusSign         = newStatus(ErrSign, http.StatusUnauthorized)
+	statusAuthExpired  = newStatus(ErrExpired, http.StatusUnauthorized)
 	statusTokenMissing = newStatus(ErrTokenMissing, http.StatusUnauthorized)
 	statusTokenInvalid = newStatus(ErrTokenInvalid, http.StatusUnauthorized)
 	statusTokenRevoked = newStatus(ErrTokenRevoked, http.StatusUnauthorized)
@@ -69,7 +77,7 @@ var (
 	statusPermission = newStatus(ErrPermission, http.StatusForbidden)
 
 	// 资源不存在 → HTTP 404 Not Found
-	statusNotFound      = newStatus(ErrNotFound, http.StatusNotFound)
+	statusNotFound       = newStatus(ErrNotFound, http.StatusNotFound)
 	statusRecordNotFound = newStatus(ErrRecordNotFound, http.StatusNotFound)
 
 	// 冲突 → HTTP 409 Conflict
@@ -80,9 +88,9 @@ var (
 	statusTooManyRequests = newStatus(ErrTooManyRequests, http.StatusTooManyRequests)
 
 	// 服务端错误 → HTTP 500 Internal Server Error
-	statusInternalServer = newStatus(ErrInternalServer, http.StatusInternalServerError)
-	statusTimeout        = newStatus(ErrTimeout, http.StatusInternalServerError)
-	statusCanceled       = newStatus(ErrCanceled, http.StatusInternalServerError)
+	statusInternalServer   = newStatus(ErrInternalServer, http.StatusInternalServerError)
+	statusTimeout          = newStatus(ErrTimeout, http.StatusInternalServerError)
+	statusCanceled         = newStatus(ErrCanceled, http.StatusInternalServerError)
 	statusDeadlineExceeded = newStatus(ErrDeadlineExceeded, http.StatusInternalServerError)
 
 	// 服务不可用 → HTTP 503 Service Unavailable
@@ -150,7 +158,7 @@ func StatusTokenRevoked() *Status { return &statusTokenRevoked }
 func StatusPermission() *Status { return &statusPermission }
 
 // 资源不存在 → HTTP 404 Not Found
-func StatusNotFound() *Status      { return &statusNotFound }
+func StatusNotFound() *Status       { return &statusNotFound }
 func StatusRecordNotFound() *Status { return &statusRecordNotFound }
 
 // 冲突 → HTTP 409 Conflict
@@ -161,9 +169,9 @@ func StatusAlreadyExists() *Status { return &statusAlreadyExists }
 func StatusTooManyRequests() *Status { return &statusTooManyRequests }
 
 // 服务端错误 → HTTP 500 Internal Server Error
-func StatusInternalServer() *Status  { return &statusInternalServer }
-func StatusTimeout() *Status         { return &statusTimeout }
-func StatusCanceled() *Status        { return &statusCanceled }
+func StatusInternalServer() *Status   { return &statusInternalServer }
+func StatusTimeout() *Status          { return &statusTimeout }
+func StatusCanceled() *Status         { return &statusCanceled }
 func StatusDeadlineExceeded() *Status { return &statusDeadlineExceeded }
 
 // 服务不可用 → HTTP 503 Service Unavailable
@@ -192,12 +200,3 @@ func StatusKafkaConsumer() *Status { return &statusKafkaConsumer }
 func StatusRabbitMQServer() *Status   { return &statusRabbitMQServer }
 func StatusRabbitMQProducer() *Status { return &statusRabbitMQProducer }
 func StatusRabbitMQConsumer() *Status { return &statusRabbitMQConsumer }
-
-// NewStatus 创建自定义 Status，用于业务方扩展错误码。
-// code 必须遵循 项目组(10)+服务(01)+模块(0~99)+错误码(0~99) 的规范。
-// 统一响应体内的业务错误建议使用 http.StatusOK；仅协议级场景再使用非 200。
-// 非法 code 会 panic；若需要预检查，可先调用 ValidateCode。
-func NewStatus(code Code, httpCode int, msg string) *Status {
-	mustValidCode(code)
-	return &Status{code: code, httpCode: httpCode, msg: msg}
-}
