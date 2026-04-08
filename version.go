@@ -1,3 +1,3 @@
 package goerr
 
-const Version = "v1.2.1"
+const Version = "v1.2.2"
