@@ -10,8 +10,6 @@ type Status struct {
 	msg      string
 }
 
-const defaultBusinessHTTPCode = http.StatusOK
-
 func mustValidCode(code Code) {
 	if err := ValidateCode(code); err != nil {
 		panic(err)
@@ -34,93 +32,145 @@ func newStatus(code Code, httpCode int) Status {
 }
 
 // 预构建的不可变 Status 值。
-// 业务错误默认使用 HTTP 200，客户端通过业务 code 判断失败。
+// HTTP 状态码语义化：业务逻辑错误 200，参数错误 400/422，认证 401，
+// 权限 403，资源不存在 404，冲突 409，限流 429，服务端错误 500。
 // 调用方通过 StatusXxx() 获取指针，指向包级别变量，零堆分配。
 var (
-	statusOK                    = newStatus(ErrNo, defaultBusinessHTTPCode)
-	statusRequestFail           = newStatus(ErrRequestFail, defaultBusinessHTTPCode)
-	statusInternalServer        = newStatus(ErrInternalServer, defaultBusinessHTTPCode)
-	statusParams                = newStatus(ErrParams, defaultBusinessHTTPCode)
-	statusValidateParams        = newStatus(ErrValidateParams, defaultBusinessHTTPCode)
-	statusAuth                  = newStatus(ErrAuthentication, defaultBusinessHTTPCode)
-	statusVip                   = newStatus(ErrVipRights, defaultBusinessHTTPCode)
-	statusNotFound              = newStatus(ErrNotFound, defaultBusinessHTTPCode)
-	statusAuthHeader            = newStatus(ErrAuthenticationHeader, defaultBusinessHTTPCode)
-	statusAppKey                = newStatus(ErrAppKey, defaultBusinessHTTPCode)
-	statusSign                  = newStatus(ErrSign, defaultBusinessHTTPCode)
-	statusPermission            = newStatus(ErrPermission, defaultBusinessHTTPCode)
-	statusTooManyRequests       = newStatus(ErrTooManyRequests, defaultBusinessHTTPCode)
-	statusInvalidJson           = newStatus(ErrInvalidJson, defaultBusinessHTTPCode)
-	statusTimeout               = newStatus(ErrTimeout, defaultBusinessHTTPCode)
-	statusAuthExpired           = newStatus(ErrExpired, defaultBusinessHTTPCode)
-	statusConflict              = newStatus(ErrConflict, defaultBusinessHTTPCode)
-	statusAlreadyExists         = newStatus(ErrAlreadyExists, defaultBusinessHTTPCode)
-	statusServiceUnavailable    = newStatus(ErrServiceUnavailable, defaultBusinessHTTPCode)
-	statusDependencyUnavailable = newStatus(ErrDependencyUnavailable, defaultBusinessHTTPCode)
-	statusCanceled              = newStatus(ErrCanceled, defaultBusinessHTTPCode)
-	statusDeadlineExceeded      = newStatus(ErrDeadlineExceeded, defaultBusinessHTTPCode)
-	statusTokenMissing          = newStatus(ErrTokenMissing, defaultBusinessHTTPCode)
-	statusTokenInvalid          = newStatus(ErrTokenInvalid, defaultBusinessHTTPCode)
-	statusTokenRevoked          = newStatus(ErrTokenRevoked, defaultBusinessHTTPCode)
-	statusDuplicateRequest      = newStatus(ErrDuplicateRequest, defaultBusinessHTTPCode)
-	statusRecordNotFound        = newStatus(ErrRecordNotFound, defaultBusinessHTTPCode)
+	// 成功 & 业务逻辑错误 → HTTP 200
+	statusOK                    = newStatus(ErrNo, http.StatusOK)
+	statusVip                   = newStatus(ErrVipRights, http.StatusOK)
+	statusDuplicateRequest      = newStatus(ErrDuplicateRequest, http.StatusOK)
+	statusInsufficientBalance   = newStatus(ErrInsufficientBalance, http.StatusOK)
+	statusInsufficientStock     = newStatus(ErrInsufficientStock, http.StatusOK)
+	statusBusinessRuleViolation = newStatus(ErrBusinessRuleViolation, http.StatusOK)
+	statusAccountDisabled       = newStatus(ErrAccountDisabled, http.StatusOK)
+	statusOperationNotAllowed   = newStatus(ErrOperationNotAllowed, http.StatusOK)
+	statusQuotaExceeded         = newStatus(ErrQuotaExceeded, http.StatusOK)
 
-	statusElasticsearchServer = newStatus(ErrElasticsearchServer, defaultBusinessHTTPCode)
-	statusElasticsearchDSL    = newStatus(ErrElasticsearchDSL, defaultBusinessHTTPCode)
+	// 参数/请求错误 → HTTP 400 Bad Request
+	statusRequestFail = newStatus(ErrRequestFail, http.StatusBadRequest)
+	statusParams      = newStatus(ErrParams, http.StatusBadRequest)
+	statusInvalidJson = newStatus(ErrInvalidJson, http.StatusBadRequest)
 
-	statusMysqlServer = newStatus(ErrMysqlServer, defaultBusinessHTTPCode)
-	statusMysqlSQL    = newStatus(ErrMysqlSQL, defaultBusinessHTTPCode)
-	statusMysqlQuery  = newStatus(ErrMysqlQuery, defaultBusinessHTTPCode)
+	// 参数校验失败 → HTTP 422 Unprocessable Entity
+	statusValidateParams = newStatus(ErrValidateParams, http.StatusUnprocessableEntity)
 
-	statusMongoServer = newStatus(ErrMongoServer, defaultBusinessHTTPCode)
-	statusMongoDSL    = newStatus(ErrMongoDSL, defaultBusinessHTTPCode)
-	statusMongoQuery  = newStatus(ErrMongoQuery, defaultBusinessHTTPCode)
+	// 认证错误 → HTTP 401 Unauthorized
+	statusAuth        = newStatus(ErrAuthentication, http.StatusUnauthorized)
+	statusAuthHeader  = newStatus(ErrAuthenticationHeader, http.StatusUnauthorized)
+	statusAppKey      = newStatus(ErrAppKey, http.StatusUnauthorized)
+	statusSign        = newStatus(ErrSign, http.StatusUnauthorized)
+	statusAuthExpired = newStatus(ErrExpired, http.StatusUnauthorized)
+	statusTokenMissing = newStatus(ErrTokenMissing, http.StatusUnauthorized)
+	statusTokenInvalid = newStatus(ErrTokenInvalid, http.StatusUnauthorized)
+	statusTokenRevoked = newStatus(ErrTokenRevoked, http.StatusUnauthorized)
 
-	statusRedisServer = newStatus(ErrRedisServer, defaultBusinessHTTPCode)
-	statusRedisQuery  = newStatus(ErrRedisQuery, defaultBusinessHTTPCode)
+	// 权限不足 → HTTP 403 Forbidden
+	statusPermission = newStatus(ErrPermission, http.StatusForbidden)
 
-	statusKafkaServer   = newStatus(ErrKafkaServer, defaultBusinessHTTPCode)
-	statusKafkaProducer = newStatus(ErrKafkaProducer, defaultBusinessHTTPCode)
-	statusKafkaConsumer = newStatus(ErrKafkaConsumer, defaultBusinessHTTPCode)
+	// 资源不存在 → HTTP 404 Not Found
+	statusNotFound      = newStatus(ErrNotFound, http.StatusNotFound)
+	statusRecordNotFound = newStatus(ErrRecordNotFound, http.StatusNotFound)
 
-	statusRabbitMQServer   = newStatus(ErrRabbitMQServer, defaultBusinessHTTPCode)
-	statusRabbitMQProducer = newStatus(ErrRabbitMQProducer, defaultBusinessHTTPCode)
-	statusRabbitMQConsumer = newStatus(ErrRabbitMQConsumer, defaultBusinessHTTPCode)
+	// 冲突 → HTTP 409 Conflict
+	statusConflict      = newStatus(ErrConflict, http.StatusConflict)
+	statusAlreadyExists = newStatus(ErrAlreadyExists, http.StatusConflict)
+
+	// 限流 → HTTP 429 Too Many Requests
+	statusTooManyRequests = newStatus(ErrTooManyRequests, http.StatusTooManyRequests)
+
+	// 服务端错误 → HTTP 500 Internal Server Error
+	statusInternalServer = newStatus(ErrInternalServer, http.StatusInternalServerError)
+	statusTimeout        = newStatus(ErrTimeout, http.StatusInternalServerError)
+	statusCanceled       = newStatus(ErrCanceled, http.StatusInternalServerError)
+	statusDeadlineExceeded = newStatus(ErrDeadlineExceeded, http.StatusInternalServerError)
+
+	// 服务不可用 → HTTP 503 Service Unavailable
+	statusServiceUnavailable    = newStatus(ErrServiceUnavailable, http.StatusServiceUnavailable)
+	statusDependencyUnavailable = newStatus(ErrDependencyUnavailable, http.StatusServiceUnavailable)
+
+	// 中间件/存储错误 → HTTP 500 Internal Server Error
+	statusElasticsearchServer = newStatus(ErrElasticsearchServer, http.StatusInternalServerError)
+	statusElasticsearchDSL    = newStatus(ErrElasticsearchDSL, http.StatusInternalServerError)
+
+	statusMysqlServer = newStatus(ErrMysqlServer, http.StatusInternalServerError)
+	statusMysqlSQL    = newStatus(ErrMysqlSQL, http.StatusInternalServerError)
+	statusMysqlQuery  = newStatus(ErrMysqlQuery, http.StatusInternalServerError)
+
+	statusMongoServer = newStatus(ErrMongoServer, http.StatusInternalServerError)
+	statusMongoDSL    = newStatus(ErrMongoDSL, http.StatusInternalServerError)
+	statusMongoQuery  = newStatus(ErrMongoQuery, http.StatusInternalServerError)
+
+	statusRedisServer = newStatus(ErrRedisServer, http.StatusInternalServerError)
+	statusRedisQuery  = newStatus(ErrRedisQuery, http.StatusInternalServerError)
+
+	statusKafkaServer   = newStatus(ErrKafkaServer, http.StatusInternalServerError)
+	statusKafkaProducer = newStatus(ErrKafkaProducer, http.StatusInternalServerError)
+	statusKafkaConsumer = newStatus(ErrKafkaConsumer, http.StatusInternalServerError)
+
+	statusRabbitMQServer   = newStatus(ErrRabbitMQServer, http.StatusInternalServerError)
+	statusRabbitMQProducer = newStatus(ErrRabbitMQProducer, http.StatusInternalServerError)
+	statusRabbitMQConsumer = newStatus(ErrRabbitMQConsumer, http.StatusInternalServerError)
 )
 
 // --- 公开访问函数 ---
 // 返回 *Status 指针，指向包级别预构建值，调用零分配。
+// 函数分组顺序与上方 var 声明一致。
 
-func StatusOK() *Status              { return &statusOK }
-func StatusRequestFail() *Status     { return &statusRequestFail }
-func StatusInternalServer() *Status  { return &statusInternalServer }
-func StatusParams() *Status          { return &statusParams }
-func StatusValidateParams() *Status  { return &statusValidateParams }
-func StatusAuth() *Status            { return &statusAuth }
-func StatusVip() *Status             { return &statusVip }
-func StatusNotFound() *Status        { return &statusNotFound }
-func StatusAuthHeader() *Status      { return &statusAuthHeader }
-func StatusAppKey() *Status          { return &statusAppKey }
-func StatusSign() *Status            { return &statusSign }
-func StatusPermission() *Status      { return &statusPermission }
-func StatusTooManyRequests() *Status { return &statusTooManyRequests }
-func StatusInvalidJson() *Status     { return &statusInvalidJson }
-func StatusTimeout() *Status         { return &statusTimeout }
-func StatusAuthExpired() *Status     { return &statusAuthExpired }
-func StatusConflict() *Status        { return &statusConflict }
-func StatusAlreadyExists() *Status   { return &statusAlreadyExists }
-func StatusServiceUnavailable() *Status {
-	return &statusServiceUnavailable
-}
-func StatusDependencyUnavailable() *Status { return &statusDependencyUnavailable }
-func StatusCanceled() *Status              { return &statusCanceled }
-func StatusDeadlineExceeded() *Status      { return &statusDeadlineExceeded }
-func StatusTokenMissing() *Status          { return &statusTokenMissing }
-func StatusTokenInvalid() *Status          { return &statusTokenInvalid }
-func StatusTokenRevoked() *Status          { return &statusTokenRevoked }
+// 成功 & 业务逻辑错误 → HTTP 200
+func StatusOK() *Status                    { return &statusOK }
+func StatusVip() *Status                   { return &statusVip }
 func StatusDuplicateRequest() *Status      { return &statusDuplicateRequest }
-func StatusRecordNotFound() *Status        { return &statusRecordNotFound }
+func StatusInsufficientBalance() *Status   { return &statusInsufficientBalance }
+func StatusInsufficientStock() *Status     { return &statusInsufficientStock }
+func StatusBusinessRuleViolation() *Status { return &statusBusinessRuleViolation }
+func StatusAccountDisabled() *Status       { return &statusAccountDisabled }
+func StatusOperationNotAllowed() *Status   { return &statusOperationNotAllowed }
+func StatusQuotaExceeded() *Status         { return &statusQuotaExceeded }
 
+// 参数/请求错误 → HTTP 400 Bad Request
+func StatusRequestFail() *Status { return &statusRequestFail }
+func StatusParams() *Status      { return &statusParams }
+func StatusInvalidJson() *Status { return &statusInvalidJson }
+
+// 参数校验失败 → HTTP 422 Unprocessable Entity
+func StatusValidateParams() *Status { return &statusValidateParams }
+
+// 认证错误 → HTTP 401 Unauthorized
+func StatusAuth() *Status         { return &statusAuth }
+func StatusAuthHeader() *Status   { return &statusAuthHeader }
+func StatusAppKey() *Status       { return &statusAppKey }
+func StatusSign() *Status         { return &statusSign }
+func StatusAuthExpired() *Status  { return &statusAuthExpired }
+func StatusTokenMissing() *Status { return &statusTokenMissing }
+func StatusTokenInvalid() *Status { return &statusTokenInvalid }
+func StatusTokenRevoked() *Status { return &statusTokenRevoked }
+
+// 权限不足 → HTTP 403 Forbidden
+func StatusPermission() *Status { return &statusPermission }
+
+// 资源不存在 → HTTP 404 Not Found
+func StatusNotFound() *Status      { return &statusNotFound }
+func StatusRecordNotFound() *Status { return &statusRecordNotFound }
+
+// 冲突 → HTTP 409 Conflict
+func StatusConflict() *Status      { return &statusConflict }
+func StatusAlreadyExists() *Status { return &statusAlreadyExists }
+
+// 限流 → HTTP 429 Too Many Requests
+func StatusTooManyRequests() *Status { return &statusTooManyRequests }
+
+// 服务端错误 → HTTP 500 Internal Server Error
+func StatusInternalServer() *Status  { return &statusInternalServer }
+func StatusTimeout() *Status         { return &statusTimeout }
+func StatusCanceled() *Status        { return &statusCanceled }
+func StatusDeadlineExceeded() *Status { return &statusDeadlineExceeded }
+
+// 服务不可用 → HTTP 503 Service Unavailable
+func StatusServiceUnavailable() *Status    { return &statusServiceUnavailable }
+func StatusDependencyUnavailable() *Status { return &statusDependencyUnavailable }
+
+// 中间件/存储错误 → HTTP 500 Internal Server Error
 func StatusElasticsearchServer() *Status { return &statusElasticsearchServer }
 func StatusElasticsearchDSL() *Status    { return &statusElasticsearchDSL }
 

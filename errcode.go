@@ -15,8 +15,9 @@ import (
 	约定
 
 		1. 模块 00 为通用错误；01~99 为业务或基础设施模块。
-		2. 进入统一响应体后，HTTP 默认返回 200；客户端以业务错误码判断成功或失败。
-		3. 仅当请求未进入统一响应体，或网关/框架必须表达协议级语义时，才返回非 200 HTTP 状态码。
+		2. HTTP 状态码语义化：业务逻辑错误返回 200，参数错误 400/422，认证 401，权限 403，
+		   资源不存在 404，冲突 409，限流 429，服务端/中间件错误 500，服务不可用 503。
+		3. 客户端通过 HTTP 状态码判断错误大类，通过响应体中的业务 code 判断具体错误。
 		4. 错误码一经发布不得复用；废弃码保留占位，不允许回填新语义。
 		5. 新增错误码优先复用已有语义，避免为同一失败场景创建多个近义码。
 		6. 认证错误优先细分 token missing / invalid / expired / revoked。
@@ -24,50 +25,56 @@ import (
 
 	| 错误标识                 | 错误码    | 默认HTTP状态码 | 描述                           |
 	| ----------------------- | -------- | -------------- | ------------------------------ |
-	| ErrNo                   | 10010000 | 200            | OK                             |
-	| ErrInternalServer       | 10010001 | 200            | Internal server error          |
-	| ErrParams               | 10010002 | 200            | Illegal params                 |
-	| ErrValidateParams       | 10010003 | 200            | Validation Errors              |
-	| ErrInvalidJson          | 10010004 | 200            | Invalid json                   |
-	| ErrAuthentication       | 10010005 | 200            | Authentication failed          |
-	| ErrAuthenticationHeader | 10010006 | 200            | Authentication header Illegal  |
-	| ErrVipRights            | 10010007 | 200            | Not Vip Rights                 |
-	| ErrPermission           | 10010008 | 200            | Permission denied              |
-	| ErrAppKey               | 10010009 | 200            | Invalid app key                |
-	| ErrSign                 | 10010010 | 200            | Invalid sign                   |
-	| ErrExpired              | 10010011 | 200            | Token expired                  |
-	| ErrTimeout              | 10010012 | 200            | Server response timeout        |
-	| ErrNotFound             | 10010013 | 200            | Page not found                 |
-	| ErrTooManyRequests      | 10010014 | 200            | Too Many Requests              |
-	| ErrRequestFail          | 10010015 | 200            | Request Fail                   |
-	| ErrConflict             | 10010016 | 200            | Conflict                       |
-	| ErrAlreadyExists        | 10010017 | 200            | Resource already exists        |
-	| ErrServiceUnavailable   | 10010018 | 200            | Service unavailable            |
-	| ErrDependencyUnavailable| 10010019 | 200            | Dependency unavailable         |
-	| ErrCanceled             | 10010020 | 200            | Request canceled               |
-	| ErrDeadlineExceeded     | 10010021 | 200            | Deadline exceeded              |
-	| ErrTokenMissing         | 10010022 | 200            | Token missing                  |
-	| ErrTokenInvalid         | 10010023 | 200            | Token invalid                  |
-	| ErrTokenRevoked         | 10010024 | 200            | Token revoked                  |
-	| ErrDuplicateRequest     | 10010025 | 200            | Duplicate request              |
-	| ErrRecordNotFound       | 10010026 | 200            | Record not found               |
+	| ErrNo                   | 10010000 | 200            | 成功                           |
+	| ErrInternalServer       | 10010001 | 500            | 服务器内部错误                 |
+	| ErrParams               | 10010002 | 400            | 参数不合法                     |
+	| ErrValidateParams       | 10010003 | 422            | 参数校验失败                   |
+	| ErrInvalidJson          | 10010004 | 400            | JSON 格式错误                  |
+	| ErrAuthentication       | 10010005 | 401            | 认证失败                       |
+	| ErrAuthenticationHeader | 10010006 | 401            | 认证请求头不合法               |
+	| ErrVipRights            | 10010007 | 200            | 非 VIP 用户                    |
+	| ErrPermission           | 10010008 | 403            | 权限不足                       |
+	| ErrAppKey               | 10010009 | 401            | 应用密钥无效                   |
+	| ErrSign                 | 10010010 | 401            | 签名无效                       |
+	| ErrExpired              | 10010011 | 401            | 令牌已过期                     |
+	| ErrTimeout              | 10010012 | 500            | 服务器响应超时                 |
+	| ErrNotFound             | 10010013 | 404            | 资源不存在                     |
+	| ErrTooManyRequests      | 10010014 | 429            | 请求过于频繁                   |
+	| ErrRequestFail          | 10010015 | 400            | 请求失败                       |
+	| ErrConflict             | 10010016 | 409            | 资源冲突                       |
+	| ErrAlreadyExists        | 10010017 | 409            | 资源已存在                     |
+	| ErrServiceUnavailable   | 10010018 | 503            | 服务不可用                     |
+	| ErrDependencyUnavailable| 10010019 | 503            | 依赖服务不可用                 |
+	| ErrCanceled             | 10010020 | 500            | 请求已取消                     |
+	| ErrDeadlineExceeded     | 10010021 | 500            | 请求超时                       |
+	| ErrTokenMissing         | 10010022 | 401            | 缺少令牌                       |
+	| ErrTokenInvalid         | 10010023 | 401            | 令牌无效                       |
+	| ErrTokenRevoked         | 10010024 | 401            | 令牌已吊销                     |
+	| ErrDuplicateRequest     | 10010025 | 200            | 重复请求                       |
+	| ErrRecordNotFound       | 10010026 | 404            | 记录不存在                     |
+	| ErrInsufficientBalance  | 10010027 | 200            | 余额不足                       |
+	| ErrInsufficientStock    | 10010028 | 200            | 库存不足                       |
+	| ErrBusinessRuleViolation| 10010029 | 200            | 业务规则限制                   |
+	| ErrAccountDisabled      | 10010030 | 200            | 账号已禁用                     |
+	| ErrOperationNotAllowed  | 10010031 | 200            | 当前状态不允许此操作           |
+	| ErrQuotaExceeded        | 10010032 | 200            | 配额已用尽                     |
 	|                         |          |                |                                |
-	| ErrElasticsearchServer  | 10010101 | 200            | Elasticsearch server error     |
-	| ErrElasticsearchDSL     | 10010102 | 200            | Elasticsearch DSL error        |
-	| ErrMysqlServer          | 10010201 | 200            | Mysql server error             |
-	| ErrMysqlSQL             | 10010202 | 200            | Illegal SQL                    |
-	| ErrMysqlQuery           | 10010203 | 200            | Mysql query error              |
-	| ErrMongoServer          | 10010301 | 200            | MongoDB server error           |
-	| ErrMongoDSL             | 10010302 | 200            | MongoDB DSL error              |
-	| ErrMongoQuery           | 10010303 | 200            | MongoDB query error            |
-	| ErrRedisServer          | 10010401 | 200            | Redis server error             |
-	| ErrRedisQuery           | 10010402 | 200            | Redis query error              |
-	| ErrKafkaServer          | 10010501 | 200            | Kafka server error             |
-	| ErrKafkaProducer        | 10010502 | 200            | Kafka Producer error           |
-	| ErrKafkaConsumer        | 10010503 | 200            | Kafka Consumer error           |
-	| ErrRabbitMQServer       | 10010601 | 200            | RabbitMQ server error          |
-	| ErrRabbitMQProducer     | 10010602 | 200            | RabbitMQ Producer error        |
-	| ErrRabbitMQConsumer     | 10010603 | 200            | RabbitMQ Consumer error        |
+	| ErrElasticsearchServer  | 10010101 | 500            | Elasticsearch 服务异常         |
+	| ErrElasticsearchDSL     | 10010102 | 500            | Elasticsearch 查询语句错误     |
+	| ErrMysqlServer          | 10010201 | 500            | MySQL 服务异常                 |
+	| ErrMysqlSQL             | 10010202 | 500            | SQL 语句错误                   |
+	| ErrMysqlQuery           | 10010203 | 500            | MySQL 查询失败                 |
+	| ErrMongoServer          | 10010301 | 500            | MongoDB 服务异常               |
+	| ErrMongoDSL             | 10010302 | 500            | MongoDB 查询语句错误           |
+	| ErrMongoQuery           | 10010303 | 500            | MongoDB 查询失败               |
+	| ErrRedisServer          | 10010401 | 500            | Redis 服务异常                 |
+	| ErrRedisQuery           | 10010402 | 500            | Redis 查询失败                 |
+	| ErrKafkaServer          | 10010501 | 500            | Kafka 服务异常                 |
+	| ErrKafkaProducer        | 10010502 | 500            | Kafka 生产者异常               |
+	| ErrKafkaConsumer        | 10010503 | 500            | Kafka 消费者异常               |
+	| ErrRabbitMQServer       | 10010601 | 500            | RabbitMQ 服务异常              |
+	| ErrRabbitMQProducer     | 10010602 | 500            | RabbitMQ 生产者异常            |
+	| ErrRabbitMQConsumer     | 10010603 | 500            | RabbitMQ 消费者异常            |
 */
 
 // Code 错误码类型，承载 项目组+服务+模块+错误码 的完整标识。
@@ -118,6 +125,12 @@ const (
 	ErrTokenRevoked          Code = 10010024
 	ErrDuplicateRequest      Code = 10010025
 	ErrRecordNotFound        Code = 10010026
+	ErrInsufficientBalance   Code = 10010027
+	ErrInsufficientStock     Code = 10010028
+	ErrBusinessRuleViolation Code = 10010029
+	ErrAccountDisabled       Code = 10010030
+	ErrOperationNotAllowed   Code = 10010031
+	ErrQuotaExceeded         Code = 10010032
 )
 
 // Elasticsearch 模块（模块代号 01）。
@@ -170,92 +183,104 @@ func (c Code) String() string {
 func (c Code) Message() string {
 	switch c {
 	case ErrNo:
-		return "OK"
+		return "成功"
 	case ErrInternalServer:
-		return "Internal Server Error"
+		return "服务器内部错误"
 	case ErrParams:
-		return "Illegal params"
+		return "参数不合法"
 	case ErrValidateParams:
-		return "Validation Errors"
+		return "参数校验失败"
 	case ErrInvalidJson:
-		return "Invalid json"
+		return "JSON 格式错误"
 	case ErrAuthentication:
-		return "Authentication failed"
+		return "认证失败"
 	case ErrAuthenticationHeader:
-		return "Authentication header Illegal"
+		return "认证请求头不合法"
 	case ErrVipRights:
-		return "Not Vip Rights"
+		return "非 VIP 用户"
 	case ErrPermission:
-		return "Permission denied"
+		return "权限不足"
 	case ErrAppKey:
-		return "Invalid app key"
+		return "应用密钥无效"
 	case ErrSign:
-		return "Invalid sign"
+		return "签名无效"
 	case ErrExpired:
-		return "Token expired"
+		return "令牌已过期"
 	case ErrTimeout:
-		return "Server response timeout"
+		return "服务器响应超时"
 	case ErrNotFound:
-		return "Page not found"
+		return "资源不存在"
 	case ErrTooManyRequests:
-		return "Too Many Requests"
+		return "请求过于频繁"
 	case ErrRequestFail:
-		return "Request Fail"
+		return "请求失败"
 	case ErrConflict:
-		return "Conflict"
+		return "资源冲突"
 	case ErrAlreadyExists:
-		return "Resource already exists"
+		return "资源已存在"
 	case ErrServiceUnavailable:
-		return "Service unavailable"
+		return "服务不可用"
 	case ErrDependencyUnavailable:
-		return "Dependency unavailable"
+		return "依赖服务不可用"
 	case ErrCanceled:
-		return "Request canceled"
+		return "请求已取消"
 	case ErrDeadlineExceeded:
-		return "Deadline exceeded"
+		return "请求超时"
 	case ErrTokenMissing:
-		return "Token missing"
+		return "缺少令牌"
 	case ErrTokenInvalid:
-		return "Token invalid"
+		return "令牌无效"
 	case ErrTokenRevoked:
-		return "Token revoked"
+		return "令牌已吊销"
 	case ErrDuplicateRequest:
-		return "Duplicate request"
+		return "重复请求"
 	case ErrRecordNotFound:
-		return "Record not found"
+		return "记录不存在"
+	case ErrInsufficientBalance:
+		return "余额不足"
+	case ErrInsufficientStock:
+		return "库存不足"
+	case ErrBusinessRuleViolation:
+		return "业务规则限制"
+	case ErrAccountDisabled:
+		return "账号已禁用"
+	case ErrOperationNotAllowed:
+		return "当前状态不允许此操作"
+	case ErrQuotaExceeded:
+		return "配额已用尽"
 	case ErrElasticsearchServer:
-		return "Elasticsearch server error"
+		return "Elasticsearch 服务异常"
 	case ErrElasticsearchDSL:
-		return "Elasticsearch DSL error"
+		return "Elasticsearch 查询语句错误"
 	case ErrMysqlServer:
-		return "Mysql server error"
+		return "MySQL 服务异常"
 	case ErrMysqlSQL:
-		return "Illegal SQL"
+		return "SQL 语句错误"
 	case ErrMysqlQuery:
-		return "Mysql query error"
+		return "MySQL 查询失败"
 	case ErrMongoServer:
-		return "MongoDB server error"
+		return "MongoDB 服务异常"
 	case ErrMongoDSL:
-		return "MongoDB DSL error"
+		return "MongoDB 查询语句错误"
 	case ErrMongoQuery:
-		return "MongoDB query error"
+		return "MongoDB 查询失败"
 	case ErrRedisServer:
-		return "Redis server error"
+		return "Redis 服务异常"
 	case ErrRedisQuery:
-		return "Redis query error"
+		return "Redis 查询失败"
 	case ErrKafkaServer:
-		return "Kafka server error"
+		return "Kafka 服务异常"
 	case ErrKafkaProducer:
-		return "Kafka Producer error"
+		return "Kafka 生产者异常"
 	case ErrKafkaConsumer:
-		return "Kafka Consumer error"
+		return "Kafka 消费者异常"
 	case ErrRabbitMQServer:
-		return "RabbitMQ server error"
+		return "RabbitMQ 服务异常"
 	case ErrRabbitMQProducer:
-		return "RabbitMQ Producer error"
+		return "RabbitMQ 生产者异常"
 	case ErrRabbitMQConsumer:
-		return "RabbitMQ Consumer error"
+		return "RabbitMQ 消费者异常"
 	default:
-		return "Unknown error"
+		return "未知错误"
 	}
 }
