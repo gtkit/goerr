@@ -68,6 +68,7 @@ import (
 	| ErrAccountLocked        | 10010040 | 200            | 账号已锁定                     |
 	| ErrUserAlreadyRegistered| 10010041 | 409            | 用户已注册                     |
 	| ErrSessionKickedOut     | 10010042 | 401            | 会话已被踢下线                 |
+	| ErrLoginNotPerformed    | 10010043 | 200            | 未执行登录操作                 |
 	|                         |          |                |                                |
 	| ErrElasticsearchServer  | 10010101 | 500            | Elasticsearch 服务异常         |
 	| ErrElasticsearchDSL     | 10010102 | 500            | Elasticsearch 查询语句错误     |
@@ -151,6 +152,7 @@ const (
 	ErrAccountLocked         Code = 10010040
 	ErrUserAlreadyRegistered Code = 10010041
 	ErrSessionKickedOut      Code = 10010042
+	ErrLoginNotPerformed     Code = 10010043
 )
 
 // Elasticsearch 模块（模块代号 01）。
@@ -288,6 +290,8 @@ func (c Code) Message() string {
 		return "用户已注册"
 	case ErrSessionKickedOut:
 		return "会话已被踢下线"
+	case ErrLoginNotPerformed:
+		return "未执行登录操作"
 	case ErrElasticsearchServer:
 		return "Elasticsearch 服务异常"
 	case ErrElasticsearchDSL:

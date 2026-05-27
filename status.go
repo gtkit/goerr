@@ -60,6 +60,7 @@ var (
 	statusCaptchaInvalid        = newStatus(ErrCaptchaInvalid, http.StatusOK)
 	statusCaptchaExpired        = newStatus(ErrCaptchaExpired, http.StatusOK)
 	statusAccountLocked         = newStatus(ErrAccountLocked, http.StatusOK)
+	statusLoginNotPerformed     = newStatus(ErrLoginNotPerformed, http.StatusOK)
 
 	// 参数/请求错误 → HTTP 400 Bad Request
 	statusRequestFail = newStatus(ErrRequestFail, http.StatusBadRequest)
@@ -151,6 +152,7 @@ func StatusPasswordIncorrect() *Status     { return &statusPasswordIncorrect }
 func StatusCaptchaInvalid() *Status        { return &statusCaptchaInvalid }
 func StatusCaptchaExpired() *Status        { return &statusCaptchaExpired }
 func StatusAccountLocked() *Status         { return &statusAccountLocked }
+func StatusLoginNotPerformed() *Status     { return &statusLoginNotPerformed }
 
 // 参数/请求错误 → HTTP 400 Bad Request
 func StatusRequestFail() *Status { return &statusRequestFail }
