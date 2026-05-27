@@ -54,6 +54,12 @@ var (
 	statusAccountDisabled       = newStatus(ErrAccountDisabled, http.StatusOK)
 	statusOperationNotAllowed   = newStatus(ErrOperationNotAllowed, http.StatusOK)
 	statusQuotaExceeded         = newStatus(ErrQuotaExceeded, http.StatusOK)
+	statusUserNotRegistered     = newStatus(ErrUserNotRegistered, http.StatusOK)
+	statusUserDeactivated       = newStatus(ErrUserDeactivated, http.StatusOK)
+	statusPasswordIncorrect     = newStatus(ErrPasswordIncorrect, http.StatusOK)
+	statusCaptchaInvalid        = newStatus(ErrCaptchaInvalid, http.StatusOK)
+	statusCaptchaExpired        = newStatus(ErrCaptchaExpired, http.StatusOK)
+	statusAccountLocked         = newStatus(ErrAccountLocked, http.StatusOK)
 
 	// 参数/请求错误 → HTTP 400 Bad Request
 	statusRequestFail = newStatus(ErrRequestFail, http.StatusBadRequest)
@@ -69,9 +75,12 @@ var (
 	statusAppKey       = newStatus(ErrAppKey, http.StatusUnauthorized)
 	statusSign         = newStatus(ErrSign, http.StatusUnauthorized)
 	statusAuthExpired  = newStatus(ErrExpired, http.StatusUnauthorized)
-	statusTokenMissing = newStatus(ErrTokenMissing, http.StatusUnauthorized)
-	statusTokenInvalid = newStatus(ErrTokenInvalid, http.StatusUnauthorized)
-	statusTokenRevoked = newStatus(ErrTokenRevoked, http.StatusUnauthorized)
+	statusTokenMissing    = newStatus(ErrTokenMissing, http.StatusUnauthorized)
+	statusTokenInvalid    = newStatus(ErrTokenInvalid, http.StatusUnauthorized)
+	statusTokenRevoked    = newStatus(ErrTokenRevoked, http.StatusUnauthorized)
+	statusNotLoggedIn     = newStatus(ErrNotLoggedIn, http.StatusUnauthorized)
+	statusLoginExpired    = newStatus(ErrLoginExpired, http.StatusUnauthorized)
+	statusSessionKickedOut = newStatus(ErrSessionKickedOut, http.StatusUnauthorized)
 
 	// 权限不足 → HTTP 403 Forbidden
 	statusPermission = newStatus(ErrPermission, http.StatusForbidden)
@@ -81,8 +90,9 @@ var (
 	statusRecordNotFound = newStatus(ErrRecordNotFound, http.StatusNotFound)
 
 	// 冲突 → HTTP 409 Conflict
-	statusConflict      = newStatus(ErrConflict, http.StatusConflict)
-	statusAlreadyExists = newStatus(ErrAlreadyExists, http.StatusConflict)
+	statusConflict             = newStatus(ErrConflict, http.StatusConflict)
+	statusAlreadyExists        = newStatus(ErrAlreadyExists, http.StatusConflict)
+	statusUserAlreadyRegistered = newStatus(ErrUserAlreadyRegistered, http.StatusConflict)
 
 	// 限流 → HTTP 429 Too Many Requests
 	statusTooManyRequests = newStatus(ErrTooManyRequests, http.StatusTooManyRequests)
@@ -135,6 +145,12 @@ func StatusBusinessRuleViolation() *Status { return &statusBusinessRuleViolation
 func StatusAccountDisabled() *Status       { return &statusAccountDisabled }
 func StatusOperationNotAllowed() *Status   { return &statusOperationNotAllowed }
 func StatusQuotaExceeded() *Status         { return &statusQuotaExceeded }
+func StatusUserNotRegistered() *Status     { return &statusUserNotRegistered }
+func StatusUserDeactivated() *Status       { return &statusUserDeactivated }
+func StatusPasswordIncorrect() *Status     { return &statusPasswordIncorrect }
+func StatusCaptchaInvalid() *Status        { return &statusCaptchaInvalid }
+func StatusCaptchaExpired() *Status        { return &statusCaptchaExpired }
+func StatusAccountLocked() *Status         { return &statusAccountLocked }
 
 // 参数/请求错误 → HTTP 400 Bad Request
 func StatusRequestFail() *Status { return &statusRequestFail }
@@ -150,9 +166,12 @@ func StatusAuthHeader() *Status   { return &statusAuthHeader }
 func StatusAppKey() *Status       { return &statusAppKey }
 func StatusSign() *Status         { return &statusSign }
 func StatusAuthExpired() *Status  { return &statusAuthExpired }
-func StatusTokenMissing() *Status { return &statusTokenMissing }
-func StatusTokenInvalid() *Status { return &statusTokenInvalid }
-func StatusTokenRevoked() *Status { return &statusTokenRevoked }
+func StatusTokenMissing() *Status    { return &statusTokenMissing }
+func StatusTokenInvalid() *Status    { return &statusTokenInvalid }
+func StatusTokenRevoked() *Status    { return &statusTokenRevoked }
+func StatusNotLoggedIn() *Status     { return &statusNotLoggedIn }
+func StatusLoginExpired() *Status    { return &statusLoginExpired }
+func StatusSessionKickedOut() *Status { return &statusSessionKickedOut }
 
 // 权限不足 → HTTP 403 Forbidden
 func StatusPermission() *Status { return &statusPermission }
@@ -162,8 +181,9 @@ func StatusNotFound() *Status       { return &statusNotFound }
 func StatusRecordNotFound() *Status { return &statusRecordNotFound }
 
 // 冲突 → HTTP 409 Conflict
-func StatusConflict() *Status      { return &statusConflict }
-func StatusAlreadyExists() *Status { return &statusAlreadyExists }
+func StatusConflict() *Status             { return &statusConflict }
+func StatusAlreadyExists() *Status        { return &statusAlreadyExists }
+func StatusUserAlreadyRegistered() *Status { return &statusUserAlreadyRegistered }
 
 // 限流 → HTTP 429 Too Many Requests
 func StatusTooManyRequests() *Status { return &statusTooManyRequests }

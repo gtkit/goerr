@@ -58,6 +58,16 @@ import (
 	| ErrAccountDisabled      | 10010030 | 200            | 账号已禁用                     |
 	| ErrOperationNotAllowed  | 10010031 | 200            | 当前状态不允许此操作           |
 	| ErrQuotaExceeded        | 10010032 | 200            | 配额已用尽                     |
+	| ErrNotLoggedIn          | 10010033 | 401            | 未登录                         |
+	| ErrLoginExpired         | 10010034 | 401            | 登录已过期                     |
+	| ErrUserNotRegistered    | 10010035 | 200            | 用户未注册                     |
+	| ErrUserDeactivated      | 10010036 | 200            | 用户已注销                     |
+	| ErrPasswordIncorrect    | 10010037 | 200            | 密码错误                       |
+	| ErrCaptchaInvalid       | 10010038 | 200            | 验证码错误                     |
+	| ErrCaptchaExpired       | 10010039 | 200            | 验证码已过期                   |
+	| ErrAccountLocked        | 10010040 | 200            | 账号已锁定                     |
+	| ErrUserAlreadyRegistered| 10010041 | 409            | 用户已注册                     |
+	| ErrSessionKickedOut     | 10010042 | 401            | 会话已被踢下线                 |
 	|                         |          |                |                                |
 	| ErrElasticsearchServer  | 10010101 | 500            | Elasticsearch 服务异常         |
 	| ErrElasticsearchDSL     | 10010102 | 500            | Elasticsearch 查询语句错误     |
@@ -131,6 +141,16 @@ const (
 	ErrAccountDisabled       Code = 10010030
 	ErrOperationNotAllowed   Code = 10010031
 	ErrQuotaExceeded         Code = 10010032
+	ErrNotLoggedIn           Code = 10010033
+	ErrLoginExpired          Code = 10010034
+	ErrUserNotRegistered     Code = 10010035
+	ErrUserDeactivated       Code = 10010036
+	ErrPasswordIncorrect     Code = 10010037
+	ErrCaptchaInvalid        Code = 10010038
+	ErrCaptchaExpired        Code = 10010039
+	ErrAccountLocked         Code = 10010040
+	ErrUserAlreadyRegistered Code = 10010041
+	ErrSessionKickedOut      Code = 10010042
 )
 
 // Elasticsearch 模块（模块代号 01）。
@@ -248,6 +268,26 @@ func (c Code) Message() string {
 		return "当前状态不允许此操作"
 	case ErrQuotaExceeded:
 		return "配额已用尽"
+	case ErrNotLoggedIn:
+		return "未登录"
+	case ErrLoginExpired:
+		return "登录已过期"
+	case ErrUserNotRegistered:
+		return "用户未注册"
+	case ErrUserDeactivated:
+		return "用户已注销"
+	case ErrPasswordIncorrect:
+		return "密码错误"
+	case ErrCaptchaInvalid:
+		return "验证码错误"
+	case ErrCaptchaExpired:
+		return "验证码已过期"
+	case ErrAccountLocked:
+		return "账号已锁定"
+	case ErrUserAlreadyRegistered:
+		return "用户已注册"
+	case ErrSessionKickedOut:
+		return "会话已被踢下线"
 	case ErrElasticsearchServer:
 		return "Elasticsearch 服务异常"
 	case ErrElasticsearchDSL:
