@@ -95,6 +95,8 @@ import (
 	| ErrOrderCompleted       | 10010706 | 200            | 订单已完成                     |
 	| ErrOrderExpired         | 10010707 | 200            | 订单已过期                     |
 	| ErrOrderRefunded        | 10010708 | 200            | 订单已退款                     |
+	| ErrOrderPending         | 10010709 | 200            | 订单待支付                     |
+	| ErrOrderPaying          | 10010710 | 200            | 订单支付中                     |
 */
 
 // Code 错误码类型，承载 项目组+服务+模块+错误码 的完整标识。
@@ -214,6 +216,8 @@ const (
 	ErrOrderCompleted     Code = 10010706
 	ErrOrderExpired       Code = 10010707
 	ErrOrderRefunded      Code = 10010708
+	ErrOrderPending       Code = 10010709
+	ErrOrderPaying        Code = 10010710
 )
 
 // String 转换错误码为字符串。
@@ -361,6 +365,10 @@ func (c Code) Message() string {
 		return "订单已过期"
 	case ErrOrderRefunded:
 		return "订单已退款"
+	case ErrOrderPending:
+		return "订单待支付"
+	case ErrOrderPaying:
+		return "订单支付中"
 	default:
 		return "未知错误"
 	}

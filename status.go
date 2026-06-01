@@ -71,6 +71,8 @@ var (
 	statusOrderCompleted     = newStatus(ErrOrderCompleted, http.StatusOK)
 	statusOrderExpired       = newStatus(ErrOrderExpired, http.StatusOK)
 	statusOrderRefunded      = newStatus(ErrOrderRefunded, http.StatusOK)
+	statusOrderPending       = newStatus(ErrOrderPending, http.StatusOK)
+	statusOrderPaying        = newStatus(ErrOrderPaying, http.StatusOK)
 
 	// 参数/请求错误 → HTTP 400 Bad Request
 	statusRequestFail = newStatus(ErrRequestFail, http.StatusBadRequest)
@@ -173,6 +175,8 @@ func StatusOrderPaid() *Status          { return &statusOrderPaid }
 func StatusOrderCompleted() *Status     { return &statusOrderCompleted }
 func StatusOrderExpired() *Status       { return &statusOrderExpired }
 func StatusOrderRefunded() *Status      { return &statusOrderRefunded }
+func StatusOrderPending() *Status       { return &statusOrderPending }
+func StatusOrderPaying() *Status        { return &statusOrderPaying }
 
 // 参数/请求错误 → HTTP 400 Bad Request
 func StatusRequestFail() *Status { return &statusRequestFail }
