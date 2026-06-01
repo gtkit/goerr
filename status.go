@@ -62,6 +62,16 @@ var (
 	statusAccountLocked         = newStatus(ErrAccountLocked, http.StatusOK)
 	statusLoginNotPerformed     = newStatus(ErrLoginNotPerformed, http.StatusOK)
 
+	// 订单模块（模块代号 07）业务态 → HTTP 200
+	statusOrderNotFound      = newStatus(ErrOrderNotFound, http.StatusOK)
+	statusOrderStatusInvalid = newStatus(ErrOrderStatusInvalid, http.StatusOK)
+	statusOrderClosed        = newStatus(ErrOrderClosed, http.StatusOK)
+	statusOrderCanceled      = newStatus(ErrOrderCanceled, http.StatusOK)
+	statusOrderPaid          = newStatus(ErrOrderPaid, http.StatusOK)
+	statusOrderCompleted     = newStatus(ErrOrderCompleted, http.StatusOK)
+	statusOrderExpired       = newStatus(ErrOrderExpired, http.StatusOK)
+	statusOrderRefunded      = newStatus(ErrOrderRefunded, http.StatusOK)
+
 	// 参数/请求错误 → HTTP 400 Bad Request
 	statusRequestFail = newStatus(ErrRequestFail, http.StatusBadRequest)
 	statusParams      = newStatus(ErrParams, http.StatusBadRequest)
@@ -153,6 +163,16 @@ func StatusCaptchaInvalid() *Status        { return &statusCaptchaInvalid }
 func StatusCaptchaExpired() *Status        { return &statusCaptchaExpired }
 func StatusAccountLocked() *Status         { return &statusAccountLocked }
 func StatusLoginNotPerformed() *Status     { return &statusLoginNotPerformed }
+
+// 订单模块（模块代号 07）业务态 → HTTP 200
+func StatusOrderNotFound() *Status      { return &statusOrderNotFound }
+func StatusOrderStatusInvalid() *Status { return &statusOrderStatusInvalid }
+func StatusOrderClosed() *Status        { return &statusOrderClosed }
+func StatusOrderCanceled() *Status      { return &statusOrderCanceled }
+func StatusOrderPaid() *Status          { return &statusOrderPaid }
+func StatusOrderCompleted() *Status     { return &statusOrderCompleted }
+func StatusOrderExpired() *Status       { return &statusOrderExpired }
+func StatusOrderRefunded() *Status      { return &statusOrderRefunded }
 
 // 参数/请求错误 → HTTP 400 Bad Request
 func StatusRequestFail() *Status { return &statusRequestFail }

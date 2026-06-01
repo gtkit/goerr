@@ -86,6 +86,15 @@ import (
 	| ErrRabbitMQServer       | 10010601 | 500            | RabbitMQ 服务异常              |
 	| ErrRabbitMQProducer     | 10010602 | 500            | RabbitMQ 生产者异常            |
 	| ErrRabbitMQConsumer     | 10010603 | 500            | RabbitMQ 消费者异常            |
+	|                         |          |                |                                |
+	| ErrOrderNotFound        | 10010701 | 200            | 订单不存在                     |
+	| ErrOrderStatusInvalid   | 10010702 | 200            | 订单状态异常                   |
+	| ErrOrderClosed          | 10010703 | 200            | 订单已关闭                     |
+	| ErrOrderCanceled        | 10010704 | 200            | 订单已取消                     |
+	| ErrOrderPaid            | 10010705 | 200            | 订单已支付                     |
+	| ErrOrderCompleted       | 10010706 | 200            | 订单已完成                     |
+	| ErrOrderExpired         | 10010707 | 200            | 订单已过期                     |
+	| ErrOrderRefunded        | 10010708 | 200            | 订单已退款                     |
 */
 
 // Code 错误码类型，承载 项目组+服务+模块+错误码 的完整标识。
@@ -193,6 +202,18 @@ const (
 	ErrRabbitMQServer   Code = 10010601
 	ErrRabbitMQProducer Code = 10010602
 	ErrRabbitMQConsumer Code = 10010603
+)
+
+// 订单模块（模块代号 07）。
+const (
+	ErrOrderNotFound      Code = 10010701
+	ErrOrderStatusInvalid Code = 10010702
+	ErrOrderClosed        Code = 10010703
+	ErrOrderCanceled      Code = 10010704
+	ErrOrderPaid          Code = 10010705
+	ErrOrderCompleted     Code = 10010706
+	ErrOrderExpired       Code = 10010707
+	ErrOrderRefunded      Code = 10010708
 )
 
 // String 转换错误码为字符串。
@@ -324,6 +345,22 @@ func (c Code) Message() string {
 		return "RabbitMQ 生产者异常"
 	case ErrRabbitMQConsumer:
 		return "RabbitMQ 消费者异常"
+	case ErrOrderNotFound:
+		return "订单不存在"
+	case ErrOrderStatusInvalid:
+		return "订单状态异常"
+	case ErrOrderClosed:
+		return "订单已关闭"
+	case ErrOrderCanceled:
+		return "订单已取消"
+	case ErrOrderPaid:
+		return "订单已支付"
+	case ErrOrderCompleted:
+		return "订单已完成"
+	case ErrOrderExpired:
+		return "订单已过期"
+	case ErrOrderRefunded:
+		return "订单已退款"
 	default:
 		return "未知错误"
 	}
