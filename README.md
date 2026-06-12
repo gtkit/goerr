@@ -40,20 +40,21 @@ log.Printf("request failed: %v", item.Error())
 
 ---
 
-## New、WrapStatus、Wrap：内部规范（必读）
+## 推荐用法：New、WrapStatus、Wrap
 
 | API | 何时使用 |
 | --- | --- |
 | **`New(err, *Status, msgs...)`** | **业务代码里新建「带业务码」的错误**：有/无底层 `err` 均可；需要自定义对外文案时用 `msgs`。 |
 | **`WrapStatus(err, *Status)`** | **已有任意 `error`，在中间件 / 边界统一补上业务状态**（例如把第三方库错误映射到本服务的 `Status`）。`status == nil` 时等价于 `StatusInternalServer()`。 |
-| **`Wrap` / `Wrapf`** | **仅追加英文/中文上下文**，不参与「赋业务码」。若内层已是 `*Item`，会保留其 `Status` 与对外 `Message()`。 |
+| **`Wrap` / `Wrapf`** | **给已有错误追加调用链上下文**。若内层已是 `*Item`，保留其 `Status` 与对外 `Message()`；若内层是普通 `error`，默认按 `StatusInternalServer()` 兜底，避免被统一响应层误判为成功。 |
 
-**禁止（除非经过网关纠正）：**
+**推荐主路径：**
 
-- **`Wrap` / `Wrapf` 作用在「非 `*Item`」的普通 `error` 上时**，得到的结果 **没有业务 `Status`**（`Code()` 会落在默认 OK 语义上），**不得直接作为「业务错误」交给统一响应层返回给客户端**。
-- 正确做法：先用 **`WrapStatus(err, goerr.StatusXxx())`** 或 **`New(err, goerr.StatusXxx())`** 赋予业务码，再视需要 **`Wrap`** 追加调用链说明；或在网关根据错误类型分支映射到合法 `*Item`。
+- 新建业务错误：`goerr.New(err, goerr.StatusXxx(), "给客户端看的文案")`
+- 普通错误映射为业务错误：`goerr.WrapStatus(err, goerr.StatusXxx())`
+- 已经是 `goerr` 错误时补充上下文：`goerr.Wrap(err, "query users")`
 
-**动态类型（配置、反射、`*Status` 与 `func() *Status` 混用）**：使用 **`ResolveStatus`**、**`NewFrom`**、**`NewfFrom`**、**`WrapStatusFrom`**，通过 **`error`** 表达失败，**避免**向 `Newf` 等传入错误类型。
+**高级用法**：配置、反射、`*Status` 与 `func() *Status` 混用时，使用 **`ResolveStatus`**、**`NewFrom`**、**`NewfFrom`**、**`WrapStatusFrom`**，通过 **`error`** 表达失败，避免向 `Newf` 等传入错误类型。`NewFn` 仅用于明确要传 `StatusXxx` 函数引用的场景。
 
 ---
 
@@ -90,9 +91,9 @@ safe := goerr.SanitizeForClient(msg, goerr.SanitizeOptions{
 项目组代号(10) + 服务代号(01) + 模块代号(0~99) + 错误码(0~99)
 ```
 
-- 统一响应体内默认返回 HTTP `200`
-- 客户端通过业务错误码判断成功或失败
-- 仅在请求未进入统一响应体，或网关/框架必须表达协议级语义时，才返回非 `200`
+- `HTTPCode()` 按业务定制返回语义化 HTTP 状态码：业务态可为 `200`，参数/认证/权限/资源/限流/服务端错误分别映射到对应 HTTP 大类
+- 客户端通过 HTTP 状态码判断错误大类，通过响应体中的业务错误码判断具体错误
+- 若某个服务采用“所有统一响应体都返回 HTTP 200”的协议，可在网关层忽略 `HTTPCode()`，只使用 `Code()` 与 `Message()`
 - 错误码一经发布不得复用；废弃码保留占位
 
 ---
@@ -100,25 +101,31 @@ safe := goerr.SanitizeForClient(msg, goerr.SanitizeOptions{
 ## 类型与常用 API
 
 - **`Code`**：业务错误码，见 `errcode.go` 中常量与 `Code.Message()` 默认文案。
-- **`Status`**：不可变状态（码 + HTTP 状态 + 默认消息），通过 **`StatusXxx()`** 取预构建指针，或 **`NewStatus`** 自定义。
+- **`Status`**：不可变状态（码 + HTTP 状态 + 默认消息），通过 **`StatusXxx()`** 取预构建指针，或通过 **`NewStatus`** / **`MustNewStatus`** 自定义。
 - **`Item`**：实现了 `error` 与 `goerr.Error`，是实际在函数间传递的值。
 
-构造方式简述：
+常用构造方式：
 
 - **`New(err, status *Status, msgs...)`**：最常见；`status` 传 **`StatusMysqlServer()`** 的返回值。`status == nil` 时视为 **`StatusOK()`**。
-- **`NewFn(err, statusFn, msgs...)`**：传入 **`StatusMysqlServer`** 函数本身，等价于在内部调用 `statusFn()`。
 - **`Newf(status *Status, format, args...)`**：无底层 `cause`，仅格式化一条消息；`status == nil` 时为 **`StatusOK()`**。
-- **`NewFrom` / `NewfFrom`**：需要 **`ResolveStatus`** 语义时使用（返回 **`error`**）。
-- **`Wrap` / `Wrapf`**：在已有 `error` 上追加上下文；见上文「禁止」说明。
-- **`WrapStatus(err, *Status)`**：给任意错误补上业务状态；`nil` 时用 **`StatusInternalServer()`**。
-- **`WrapStatusFrom`**：与 `WrapStatus` 相同语义，但 `status` 可为 `any` 并由 **`ResolveStatus`** 解析。
+- **`WrapStatus(err, *Status)`**：给任意错误补上业务状态；`status == nil` 时用 **`StatusInternalServer()`**。
+- **`Wrap` / `Wrapf`**：在已有错误上追加上下文；若普通 `error` 未带业务状态，会自动兜底为 **`StatusInternalServer()`**。
+
+高级构造方式：
+
+- **`NewFn(err, statusFn, msgs...)`**：传入 **`StatusMysqlServer`** 函数本身，等价于在内部调用 `statusFn()`。
+- **`NewFrom` / `NewfFrom` / `WrapStatusFrom`**：需要 **`ResolveStatus`** 语义时使用，适合动态类型输入。
 
 ---
 
 ## 快速使用
 
 ```go
-import "github.com/gtkit/goerr"
+import (
+	"io"
+
+	"github.com/gtkit/goerr"
+)
 
 // 创建带状态码的错误（第二个参数为 *Status，请调用 StatusXxx()）
 err := goerr.New(err, goerr.StatusMysqlServer())
@@ -132,39 +139,42 @@ err = goerr.New(nil, goerr.StatusNotFound(), "order not found")
 // 仅格式化消息、无 cause
 err = goerr.Newf(goerr.StatusParams(), "field %q is required", "name")
 
-// 包装已有错误（日志更详细；若内层是 *Item，对外 Message 仍读内层）
+// 已有 goerr 错误时追加上下文（日志更详细；对外 Message 保持稳定）
 err = goerr.Wrap(err, "query users")
 
 // 为错误补充业务状态码（适合「任意 error → 业务码」）
 err = goerr.WrapStatus(err, goerr.StatusRedisServer())
 
+// 若直接 Wrap 普通 error，会按 StatusInternalServer() 兜底
+err = goerr.Wrap(io.ErrUnexpectedEOF, "read request body")
+
 // 组装统一响应（示意：用 Message，不要用 Error 给前端）
 if item, ok := goerr.AsItem(err); ok {
 	code := item.Code()       // 业务错误码 → JSON `code`
-	http := item.HTTPCode() // 协议层 HTTP 状态码（多数业务场景仍为 200）
+	http := item.HTTPCode()   // 协议层 HTTP 状态码
 	msg := item.Message()     // → JSON `message`，给客户端看（建议再经 SanitizeForClient）
 	_ = code
 	_ = http
 	_ = msg
 }
 
-// 自定义业务错误码（需先保证 Code 合法）
-st := goerr.NewStatus(goerr.Code(10010701), 200, "Order expired")
+// 自定义业务错误码：NewStatus 不校验 code，适合业务方自由编码
+st := goerr.NewStatus(goerr.Code(900001), 200, "Custom business error")
 _ = st
 ```
 
-绝大多数业务错误建议沿用预构建的 `StatusXxx()`，它们默认使用 HTTP `200`。只有协议级或网关级场景，才建议通过 `NewStatus` 指定非 `200` HTTP 状态码。
+绝大多数业务错误建议沿用预构建的 `StatusXxx()`；它们的 HTTP 状态码按本包业务约定语义化映射。需要自定义状态时，用 `NewStatus` 或 `MustNewStatus`。
 
 MySQL 查询「没有这条数据」时，建议使用 `StatusRecordNotFound()`；`StatusMysqlQuery()` 只用于 SQL 已执行但查询过程本身出错。
 
-若注册自定义错误码，可先调用 `ValidateCode` 做预检查；`NewStatus` 遇到非法错误码会直接 panic。
+若注册自定义错误码，可先调用 `ValidateCode` 做预检查；若希望包级变量初始化时强制校验，使用 `MustNewStatus`，非法 code 会直接 panic。
 
 ```go
 code := goerr.Code(10010701)
 if err := goerr.ValidateCode(code); err != nil {
 	return err
 }
-status := goerr.NewStatus(code, 200, "Order expired")
+status := goerr.MustNewStatus(code, 200, "Order expired")
 _ = status
 ```
 
@@ -216,9 +226,10 @@ func mapDBError(err error) error {
 ## 设计要点
 
 - **零外部依赖** — 仅使用标准库
-- **Status 预构建单例** — `StatusXxx()` 返回包级别指针，零堆分配；预构建业务错误默认 HTTP `200`
+- **Status 预构建单例** — `StatusXxx()` 返回包级别指针，零堆分配；HTTP 状态码按业务约定预构建
 - **Item 不可变** — `Wrap` 不修改原始错误，并发安全无需锁
 - **Message / Error 分工** — 见上文「Message() 与 Error()」约定
+- **普通 error 安全兜底** — `Wrap` / `Wrapf` / `WithStack` 处理普通 `error` 时默认使用 `StatusInternalServer()`，避免成功码误判
 - **严格类型** — `Newf` / `WrapStatus` 使用 `*Status`；动态解析用 `*From` / `ResolveStatus`
 - **Unwrap 支持** — 完整兼容 `errors.Is` / `errors.As` 错误链
 - **`%+v` 调用栈** — 配合 zap 等日志库输出完整堆栈与 cause

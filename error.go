@@ -156,7 +156,8 @@ func Newf(status *Status, format string, args ...any) *Item {
 }
 
 // Wrap 为已有错误附加上下文消息。
-// 如果 err 已是 *Item，会保留其 status 和 cause 链；否则创建新的无状态 Item。
+// 如果 err 已是 *Item，会保留其 status 和对外 Message；否则按内部服务错误兜底，
+// 避免普通 error 被统一响应层误判为成功。
 // 始终返回新的 *Item，不修改原始错误——并发安全。
 func Wrap(err error, msg string) *Item {
 	if err == nil {
@@ -172,9 +173,11 @@ func Wrap(err error, msg string) *Item {
 			stack:     callers(3),
 		}
 	}
+	st := StatusInternalServer()
 	return &Item{
 		msg:       msg + ": " + err.Error(),
-		clientMsg: msg,
+		clientMsg: st.Msg(),
+		status:    st,
 		cause:     err,
 		stack:     callers(3),
 	}
@@ -197,9 +200,11 @@ func Wrapf(err error, format string, args ...any) *Item {
 			stack:     callers(3),
 		}
 	}
+	st := StatusInternalServer()
 	return &Item{
 		msg:       msg + ": " + err.Error(),
-		clientMsg: msg,
+		clientMsg: st.Msg(),
+		status:    st,
 		cause:     err,
 		stack:     callers(3),
 	}
@@ -227,7 +232,8 @@ func WrapStatus(err error, status *Status) *Item {
 	}
 }
 
-// WithStack 为普通 error 附加调用栈。若已是 *Item 则直接返回。
+// WithStack 为普通 error 附加调用栈。若已是 *Item 则直接返回；
+// 否则按内部服务错误兜底，避免普通 error 被统一响应层误判为成功。
 func WithStack(err error) *Item {
 	if err == nil {
 		return nil
@@ -235,9 +241,11 @@ func WithStack(err error) *Item {
 	if e, ok := errors.AsType[*Item](err); ok {
 		return e
 	}
+	st := StatusInternalServer()
 	return &Item{
 		msg:       err.Error(),
-		clientMsg: err.Error(),
+		clientMsg: st.Msg(),
+		status:    st,
 		cause:     err,
 		stack:     callers(3),
 	}

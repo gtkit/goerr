@@ -13,7 +13,7 @@ go test -fuzz=FuzzClampMessage -fuzztime=3s ./...
 
 | 区域 | 内容 |
 | --- | --- |
-| 构造 | `New`、`NewFn`、`Newf`、`NewFrom`、`NewfFrom` |
+| 构造 | `New`、`NewFn`、`Newf`、`NewFrom`、`NewfFrom`、`NewStatus`、`MustNewStatus` |
 | 包装 | `Wrap`、`Wrapf`、`WrapStatus`、`WrapStatusFrom` |
 | 解析 | `ResolveStatus`、`AsItem`、`Unwrap` / `errors.Is` |
 | 展示 | `Message` vs `Error`、`Format`（`%+v`） |

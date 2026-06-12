@@ -96,8 +96,11 @@ func TestWrap_innerItem_preservesClientMessage(t *testing.T) {
 func TestWrap_plainError(t *testing.T) {
 	base := errors.New("root")
 	w := Wrap(base, "load config")
-	if w.Message() != "load config" {
+	if w.Message() != StatusInternalServer().Msg() {
 		t.Errorf("Message() = %q", w.Message())
+	}
+	if w.Code() != ErrInternalServer {
+		t.Errorf("Code() = %v", w.Code())
 	}
 	if !strings.Contains(w.Error(), "load config") || !strings.Contains(w.Error(), "root") {
 		t.Errorf("Error() = %q", w.Error())
@@ -109,6 +112,20 @@ func TestWrapf(t *testing.T) {
 	w := Wrapf(inner, "step %d", 1)
 	if w.Message() != inner.Message() {
 		t.Errorf("Message = %q", w.Message())
+	}
+}
+
+func TestWrapf_plainErrorDefaultsInternalServer(t *testing.T) {
+	base := errors.New("root")
+	w := Wrapf(base, "step %d", 1)
+	if w.Message() != StatusInternalServer().Msg() {
+		t.Errorf("Message() = %q", w.Message())
+	}
+	if w.Code() != ErrInternalServer {
+		t.Errorf("Code() = %v", w.Code())
+	}
+	if !strings.Contains(w.Error(), "step 1") || !strings.Contains(w.Error(), "root") {
+		t.Errorf("Error() = %q", w.Error())
 	}
 }
 
@@ -135,8 +152,11 @@ func TestWrapStatus(t *testing.T) {
 func TestWithStack_plain(t *testing.T) {
 	e := errors.New("x")
 	w := WithStack(e)
-	if w.Message() != "x" || w.Error() != "x" {
+	if w.Message() != StatusInternalServer().Msg() || w.Error() != "x" {
 		t.Errorf("WithStack plain: Message=%q Error=%q", w.Message(), w.Error())
+	}
+	if w.Code() != ErrInternalServer {
+		t.Errorf("Code() = %v", w.Code())
 	}
 }
 
