@@ -63,3 +63,19 @@ func TestRedactForLog(t *testing.T) {
 		t.Errorf("RedactForLog: %q", s)
 	}
 }
+
+func TestRedactPhone_boundary(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"order_no=2024113812345678", "order_no=2024113812345678"}, // 长数字串里的 11 位子串不能被当成手机号
+		{"tel 13900001111", "tel [phone]"},
+		{"tel:+8613900001111.", "tel:[phone]."},
+		{"tel:8613900001111", "tel:[phone]"},
+		{"13900001111", "[phone]"},
+		{"13800000000,13900000000", "[phone],[phone]"},
+	}
+	for _, tt := range tests {
+		if got := RedactForLog(tt.in); got != tt.want {
+			t.Errorf("RedactForLog(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}

@@ -1,9 +1,8 @@
 package goerr
 
-import "net/http"
-
 // Status 错误状态，包含业务错误码、HTTP 状态码和消息。
-// Status 是不可变值类型，所有实例在包初始化时预构建，运行时零分配。
+// 所有字段私有且构造后不再写入；StatusXxx() 返回的是包级预构建实例的指针，
+// 供全进程共享，请勿对其解引用赋值（那会污染所有调用方看到的状态）。
 type Status struct {
 	code     Code
 	httpCode int
@@ -39,115 +38,118 @@ func (s *Status) HTTPCode() int { return s.httpCode }
 // Msg 返回错误消息。
 func (s *Status) Msg() string { return s.msg }
 
-// newStatus 构造 Status，msg 取 Code 默认消息。
-func newStatus(code Code, httpCode int) Status {
+// newStatus 从 codeTable 取 HTTP 状态码与默认文案构造 Status。
+// 未登记的码在包初始化期 panic，让「加了码却漏配元信息」立刻暴露而非留到运行时。
+func newStatus(code Code) Status {
 	mustValidCode(code)
-	return Status{code: code, httpCode: httpCode, msg: code.Message()}
+	m, ok := codeTable[code]
+	if !ok {
+		panic("goerr: code " + code.String() + " is not registered in codeTable")
+	}
+	return Status{code: code, httpCode: m.httpCode, msg: m.msg}
 }
 
-// 预构建的不可变 Status 值。
-// HTTP 状态码语义化：业务逻辑错误 200，参数错误 400/422，认证 401，
-// 权限 403，资源不存在 404，冲突 409，限流 429，服务端错误 500。
+// 预构建的不可变 Status 值，HTTP 状态码与文案来自 codeTable。
 // 调用方通过 StatusXxx() 获取指针，指向包级别变量，零堆分配。
 var (
 	// 成功 & 业务逻辑错误 → HTTP 200
-	statusOK                    = newStatus(ErrNo, http.StatusOK)
-	statusVip                   = newStatus(ErrVipRights, http.StatusOK)
-	statusDuplicateRequest      = newStatus(ErrDuplicateRequest, http.StatusOK)
-	statusInsufficientBalance   = newStatus(ErrInsufficientBalance, http.StatusOK)
-	statusInsufficientStock     = newStatus(ErrInsufficientStock, http.StatusOK)
-	statusBusinessRuleViolation = newStatus(ErrBusinessRuleViolation, http.StatusOK)
-	statusAccountDisabled       = newStatus(ErrAccountDisabled, http.StatusOK)
-	statusOperationNotAllowed   = newStatus(ErrOperationNotAllowed, http.StatusOK)
-	statusQuotaExceeded         = newStatus(ErrQuotaExceeded, http.StatusOK)
-	statusUserNotRegistered     = newStatus(ErrUserNotRegistered, http.StatusOK)
-	statusUserDeactivated       = newStatus(ErrUserDeactivated, http.StatusOK)
-	statusPasswordIncorrect     = newStatus(ErrPasswordIncorrect, http.StatusOK)
-	statusCaptchaInvalid        = newStatus(ErrCaptchaInvalid, http.StatusOK)
-	statusCaptchaExpired        = newStatus(ErrCaptchaExpired, http.StatusOK)
-	statusAccountLocked         = newStatus(ErrAccountLocked, http.StatusOK)
-	statusLoginNotPerformed     = newStatus(ErrLoginNotPerformed, http.StatusOK)
+	statusOK                    = newStatus(ErrNo)
+	statusVip                   = newStatus(ErrVipRights)
+	statusDuplicateRequest      = newStatus(ErrDuplicateRequest)
+	statusInsufficientBalance   = newStatus(ErrInsufficientBalance)
+	statusInsufficientStock     = newStatus(ErrInsufficientStock)
+	statusBusinessRuleViolation = newStatus(ErrBusinessRuleViolation)
+	statusAccountDisabled       = newStatus(ErrAccountDisabled)
+	statusOperationNotAllowed   = newStatus(ErrOperationNotAllowed)
+	statusQuotaExceeded         = newStatus(ErrQuotaExceeded)
+	statusUserNotRegistered     = newStatus(ErrUserNotRegistered)
+	statusUserDeactivated       = newStatus(ErrUserDeactivated)
+	statusPasswordIncorrect     = newStatus(ErrPasswordIncorrect)
+	statusCaptchaInvalid        = newStatus(ErrCaptchaInvalid)
+	statusCaptchaExpired        = newStatus(ErrCaptchaExpired)
+	statusAccountLocked         = newStatus(ErrAccountLocked)
+	statusLoginNotPerformed     = newStatus(ErrLoginNotPerformed)
 
 	// 订单模块（模块代号 07）业务态 → HTTP 200
-	statusOrderNotFound      = newStatus(ErrOrderNotFound, http.StatusOK)
-	statusOrderStatusInvalid = newStatus(ErrOrderStatusInvalid, http.StatusOK)
-	statusOrderClosed        = newStatus(ErrOrderClosed, http.StatusOK)
-	statusOrderCanceled      = newStatus(ErrOrderCanceled, http.StatusOK)
-	statusOrderPaid          = newStatus(ErrOrderPaid, http.StatusOK)
-	statusOrderCompleted     = newStatus(ErrOrderCompleted, http.StatusOK)
-	statusOrderExpired       = newStatus(ErrOrderExpired, http.StatusOK)
-	statusOrderRefunded      = newStatus(ErrOrderRefunded, http.StatusOK)
-	statusOrderPending       = newStatus(ErrOrderPending, http.StatusOK)
-	statusOrderPaying        = newStatus(ErrOrderPaying, http.StatusOK)
+	statusOrderNotFound      = newStatus(ErrOrderNotFound)
+	statusOrderStatusInvalid = newStatus(ErrOrderStatusInvalid)
+	statusOrderClosed        = newStatus(ErrOrderClosed)
+	statusOrderCanceled      = newStatus(ErrOrderCanceled)
+	statusOrderPaid          = newStatus(ErrOrderPaid)
+	statusOrderCompleted     = newStatus(ErrOrderCompleted)
+	statusOrderExpired       = newStatus(ErrOrderExpired)
+	statusOrderRefunded      = newStatus(ErrOrderRefunded)
+	statusOrderPending       = newStatus(ErrOrderPending)
+	statusOrderPaying        = newStatus(ErrOrderPaying)
 
 	// 参数/请求错误 → HTTP 400 Bad Request
-	statusRequestFail = newStatus(ErrRequestFail, http.StatusBadRequest)
-	statusParams      = newStatus(ErrParams, http.StatusBadRequest)
-	statusInvalidJson = newStatus(ErrInvalidJson, http.StatusBadRequest)
+	statusRequestFail = newStatus(ErrRequestFail)
+	statusParams      = newStatus(ErrParams)
+	statusInvalidJson = newStatus(ErrInvalidJson)
 
 	// 参数校验失败 → HTTP 422 Unprocessable Entity
-	statusValidateParams = newStatus(ErrValidateParams, http.StatusUnprocessableEntity)
+	statusValidateParams = newStatus(ErrValidateParams)
 
 	// 认证错误 → HTTP 401 Unauthorized
-	statusAuth             = newStatus(ErrAuthentication, http.StatusUnauthorized)
-	statusAuthHeader       = newStatus(ErrAuthenticationHeader, http.StatusUnauthorized)
-	statusAppKey           = newStatus(ErrAppKey, http.StatusUnauthorized)
-	statusSign             = newStatus(ErrSign, http.StatusUnauthorized)
-	statusAuthExpired      = newStatus(ErrExpired, http.StatusUnauthorized)
-	statusTokenMissing     = newStatus(ErrTokenMissing, http.StatusUnauthorized)
-	statusTokenInvalid     = newStatus(ErrTokenInvalid, http.StatusUnauthorized)
-	statusTokenRevoked     = newStatus(ErrTokenRevoked, http.StatusUnauthorized)
-	statusNotLoggedIn      = newStatus(ErrNotLoggedIn, http.StatusUnauthorized)
-	statusLoginExpired     = newStatus(ErrLoginExpired, http.StatusUnauthorized)
-	statusSessionKickedOut = newStatus(ErrSessionKickedOut, http.StatusUnauthorized)
+	statusAuth             = newStatus(ErrAuthentication)
+	statusAuthHeader       = newStatus(ErrAuthenticationHeader)
+	statusAppKey           = newStatus(ErrAppKey)
+	statusSign             = newStatus(ErrSign)
+	statusAuthExpired      = newStatus(ErrExpired)
+	statusTokenMissing     = newStatus(ErrTokenMissing)
+	statusTokenInvalid     = newStatus(ErrTokenInvalid)
+	statusTokenRevoked     = newStatus(ErrTokenRevoked)
+	statusNotLoggedIn      = newStatus(ErrNotLoggedIn)
+	statusLoginExpired     = newStatus(ErrLoginExpired)
+	statusSessionKickedOut = newStatus(ErrSessionKickedOut)
 
 	// 权限不足 → HTTP 403 Forbidden
-	statusPermission = newStatus(ErrPermission, http.StatusForbidden)
+	statusPermission = newStatus(ErrPermission)
 
 	// 资源不存在 → HTTP 404 Not Found
-	statusNotFound       = newStatus(ErrNotFound, http.StatusNotFound)
-	statusRecordNotFound = newStatus(ErrRecordNotFound, http.StatusNotFound)
+	statusNotFound       = newStatus(ErrNotFound)
+	statusRecordNotFound = newStatus(ErrRecordNotFound)
 
 	// 冲突 → HTTP 409 Conflict
-	statusConflict              = newStatus(ErrConflict, http.StatusConflict)
-	statusAlreadyExists         = newStatus(ErrAlreadyExists, http.StatusConflict)
-	statusUserAlreadyRegistered = newStatus(ErrUserAlreadyRegistered, http.StatusConflict)
+	statusConflict              = newStatus(ErrConflict)
+	statusAlreadyExists         = newStatus(ErrAlreadyExists)
+	statusUserAlreadyRegistered = newStatus(ErrUserAlreadyRegistered)
 
 	// 限流 → HTTP 429 Too Many Requests
-	statusTooManyRequests = newStatus(ErrTooManyRequests, http.StatusTooManyRequests)
+	statusTooManyRequests = newStatus(ErrTooManyRequests)
 
 	// 服务端错误 → HTTP 500 Internal Server Error
-	statusInternalServer   = newStatus(ErrInternalServer, http.StatusInternalServerError)
-	statusTimeout          = newStatus(ErrTimeout, http.StatusInternalServerError)
-	statusCanceled         = newStatus(ErrCanceled, http.StatusInternalServerError)
-	statusDeadlineExceeded = newStatus(ErrDeadlineExceeded, http.StatusInternalServerError)
+	statusInternalServer   = newStatus(ErrInternalServer)
+	statusTimeout          = newStatus(ErrTimeout)
+	statusCanceled         = newStatus(ErrCanceled)
+	statusDeadlineExceeded = newStatus(ErrDeadlineExceeded)
 
 	// 服务不可用 → HTTP 503 Service Unavailable
-	statusServiceUnavailable    = newStatus(ErrServiceUnavailable, http.StatusServiceUnavailable)
-	statusDependencyUnavailable = newStatus(ErrDependencyUnavailable, http.StatusServiceUnavailable)
+	statusServiceUnavailable    = newStatus(ErrServiceUnavailable)
+	statusDependencyUnavailable = newStatus(ErrDependencyUnavailable)
 
 	// 中间件/存储错误 → HTTP 500 Internal Server Error
-	statusElasticsearchServer = newStatus(ErrElasticsearchServer, http.StatusInternalServerError)
-	statusElasticsearchDSL    = newStatus(ErrElasticsearchDSL, http.StatusInternalServerError)
+	statusElasticsearchServer = newStatus(ErrElasticsearchServer)
+	statusElasticsearchDSL    = newStatus(ErrElasticsearchDSL)
 
-	statusMysqlServer = newStatus(ErrMysqlServer, http.StatusInternalServerError)
-	statusMysqlSQL    = newStatus(ErrMysqlSQL, http.StatusInternalServerError)
-	statusMysqlQuery  = newStatus(ErrMysqlQuery, http.StatusInternalServerError)
+	statusMysqlServer = newStatus(ErrMysqlServer)
+	statusMysqlSQL    = newStatus(ErrMysqlSQL)
+	statusMysqlQuery  = newStatus(ErrMysqlQuery)
 
-	statusMongoServer = newStatus(ErrMongoServer, http.StatusInternalServerError)
-	statusMongoDSL    = newStatus(ErrMongoDSL, http.StatusInternalServerError)
-	statusMongoQuery  = newStatus(ErrMongoQuery, http.StatusInternalServerError)
+	statusMongoServer = newStatus(ErrMongoServer)
+	statusMongoDSL    = newStatus(ErrMongoDSL)
+	statusMongoQuery  = newStatus(ErrMongoQuery)
 
-	statusRedisServer = newStatus(ErrRedisServer, http.StatusInternalServerError)
-	statusRedisQuery  = newStatus(ErrRedisQuery, http.StatusInternalServerError)
+	statusRedisServer = newStatus(ErrRedisServer)
+	statusRedisQuery  = newStatus(ErrRedisQuery)
 
-	statusKafkaServer   = newStatus(ErrKafkaServer, http.StatusInternalServerError)
-	statusKafkaProducer = newStatus(ErrKafkaProducer, http.StatusInternalServerError)
-	statusKafkaConsumer = newStatus(ErrKafkaConsumer, http.StatusInternalServerError)
+	statusKafkaServer   = newStatus(ErrKafkaServer)
+	statusKafkaProducer = newStatus(ErrKafkaProducer)
+	statusKafkaConsumer = newStatus(ErrKafkaConsumer)
 
-	statusRabbitMQServer   = newStatus(ErrRabbitMQServer, http.StatusInternalServerError)
-	statusRabbitMQProducer = newStatus(ErrRabbitMQProducer, http.StatusInternalServerError)
-	statusRabbitMQConsumer = newStatus(ErrRabbitMQConsumer, http.StatusInternalServerError)
+	statusRabbitMQServer   = newStatus(ErrRabbitMQServer)
+	statusRabbitMQProducer = newStatus(ErrRabbitMQProducer)
+	statusRabbitMQConsumer = newStatus(ErrRabbitMQConsumer)
 )
 
 // --- 公开访问函数 ---

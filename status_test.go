@@ -28,6 +28,15 @@ func TestMustNewStatus_panicsOnInvalidCode(t *testing.T) {
 	_ = MustNewStatus(Code(1), 200, "invalid")
 }
 
+func TestNewStatus_panicsOnUnregisteredCode(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic: code in valid range but missing from codeTable")
+		}
+	}()
+	_ = newStatus(Code(10999999))
+}
+
 func ExampleNewStatus() {
 	// 自定义错误码，不校验编码规范，业务方可自由编码
 	st := NewStatus(Code(900001), 200, "Custom business error")

@@ -65,7 +65,7 @@ func TestNewfFrom(t *testing.T) {
 
 func TestWrapStatusFrom(t *testing.T) {
 	item, err := WrapStatusFrom(errors.New("e"), StatusRedisServer())
-	if err != nil || item.Code() != ErrRedisServer {
+	if err != nil || !HasCode(item, ErrRedisServer) {
 		t.Fatal(item, err)
 	}
 	item, err = WrapStatusFrom(nil, StatusOK())

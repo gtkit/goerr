@@ -1,17 +1,19 @@
 package goerr
 
-import (
-	"regexp"
-	"unicode/utf8"
-)
+import "regexp"
 
 // DefaultMaxMessageRunes 网关未显式配置时的默认 message 截断长度（可按业务调整）。
 const DefaultMaxMessageRunes = 512
 
 var (
-	phoneCNRegex = regexp.MustCompile(`(?i)(?:\+?86)?1[3-9]\d{9}\b`)
+	// 前导 (^|[^0-9]) 是必需的：没有它，订单号、流水号等长数字串中任意一段 11 位子串
+	// 都会被当成手机号打码，反而妨碍排障。Go 正则没有 lookbehind，只能捕获后用 ${1} 放回。
+	phoneCNRegex = regexp.MustCompile(`(^|[^0-9])((?:\+?86)?1[3-9]\d{9})\b`)
 	emailRegex   = regexp.MustCompile(`[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}`)
 )
+
+func redactPhone(s string) string { return phoneCNRegex.ReplaceAllString(s, "${1}[phone]") }
+func redactEmail(s string) string { return emailRegex.ReplaceAllString(s, "[email]") }
 
 // SanitizeOptions 控制对外 message 的截断与简单脱敏（网关/BFF 层使用）。
 type SanitizeOptions struct {
@@ -28,10 +30,10 @@ type SanitizeOptions struct {
 func SanitizeForClient(msg string, opts SanitizeOptions) string {
 	out := msg
 	if opts.RedactPhone {
-		out = phoneCNRegex.ReplaceAllString(out, "[phone]")
+		out = redactPhone(out)
 	}
 	if opts.RedactEmail {
-		out = emailRegex.ReplaceAllString(out, "[email]")
+		out = redactEmail(out)
 	}
 	max := opts.MaxRunes
 	if max <= 0 {
@@ -45,18 +47,18 @@ func ClampMessage(msg string, maxRunes int) string {
 	if maxRunes <= 0 {
 		return ""
 	}
-	n := utf8.RuneCountInString(msg)
-	if n <= maxRunes {
-		return msg
+	n := 0
+	for i := range msg { // range string 按 rune 迭代，i 是当前 rune 的起始字节位
+		n++
+		if n > maxRunes {
+			return msg[:i] + "…"
+		}
 	}
-	rs := []rune(msg)
-	return string(rs[:maxRunes]) + "…"
+	return msg
 }
 
 // RedactForLog 对整段字符串做常见 PII 占位替换，便于在落日志前对 Error() 等全文做一层脱敏。
 // 仍可能遗漏业务自定义敏感格式，需与日志平台脱敏、权限与保留策略配合使用。
 func RedactForLog(s string) string {
-	s = phoneCNRegex.ReplaceAllString(s, "[phone]")
-	s = emailRegex.ReplaceAllString(s, "[email]")
-	return s
+	return redactEmail(redactPhone(s))
 }
