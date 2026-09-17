@@ -1,5 +1,49 @@
 # Changelog
 
+## v1.4.0
+
+纯新增，无破坏性变更：补齐支付、账号与第三方登录、AI 大模型、文件、邮件五个业务模块，
+并为通用模块与现有中间件模块补上缺失的码。错误码总数 70 → 136。
+
+### 新增模块
+
+- **模块 08 支付**（16 个）——支付单状态、渠道故障、回调验签、退款。
+  金额不符 `ErrPaymentAmountMismatch`(400) 与验签失败 `ErrPaymentSignInvalid`(401) 单独建码：
+  它们是安全事件，需要独立的日志级别与告警，不能并入通用参数错误。
+  异步通知场景下 `HTTPCode()` 决定渠道是否继续重试（4xx 停止 / 5xx 重试）。
+- **模块 09 账号与第三方登录**（8 个）——手机号与第三方账号绑定冲突、授权失败、短信验证码频控。
+  通用登录态错误（未登录、登录过期、验证码错误等）继续用模块 00 已有的码。
+- **模块 10 AI 大模型**（11 个）——与 `go-llm-provider` 的 `ErrorCode` 枚举一一对应。
+  HTTP 码按「谁能解决」划分：用户可自行修正的给 200，我方配置/实现问题给 500，供应商侧故障给 503。
+  用户配额继续复用通用的 `ErrQuotaExceeded`。
+- **模块 11 文件**（8 个）——业务侧文件校验与存储故障。
+- **模块 12 邮件**（6 个）——邮箱绑定、发送频控与服务故障。
+
+### 通用模块（00）新增 7 个
+
+`ErrRequestBodyTooLarge`(413)、`ErrUnsupportedMediaType`(415)、`ErrVersionConflict`(409)、
+`ErrOperationInProgress`(200)、`ErrRiskControlRejected`(200)、`ErrFeatureDisabled`(200)、
+`ErrSystemMaintenance`(503)。
+
+其中 `ErrVersionConflict` 用于乐观锁更新影响 0 行；`ErrOperationInProgress` 用于分布式锁未抢到，
+与表示「已处理过」的 `ErrDuplicateRequest` 语义不同。
+
+### 中间件模块各补 2 个
+
+- **01 Elasticsearch**：`ErrElasticsearchIndexNotFound`、`ErrElasticsearchBulkPartial`
+  （bulk 部分失败是静默丢数据的常见来源）
+- **02 MySQL**：`ErrMysqlDeadlock`（需单独统计并重试）、`ErrMysqlTransaction`
+- **04 Redis**：`ErrRedisLockAcquireFailed`、`ErrRedisLockLost`
+  （续期时发现锁已不属于自己，是数据一致性事故信号）
+- **05 Kafka / 06 RabbitMQ**：`ErrXxxMessageDecode`、`ErrXxxRetryExhausted`
+  （二者是进死信队列的判据，独立建码才能在死信里按码归类）
+
+### 其他
+
+- 新增码全部提供 `StatusXxx()`，与既有码保持一致，不需要调用方自己 `NewStatus`。
+- `errcode.go` 的包注释补上已分配模块一览与两条选码原则；README 增加模块表、
+  AI 大模型映射、支付回调重试控制、消息队列死信判据三节示例。
+
 ## v1.3.0
 
 本版含**破坏性变更**，全部为 fail-closed 形态：要么编译期报错，要么把原先「失败被读成成功」的行为改成按失败处理。

@@ -69,6 +69,9 @@ var (
 	statusCaptchaExpired        = newStatus(ErrCaptchaExpired)
 	statusAccountLocked         = newStatus(ErrAccountLocked)
 	statusLoginNotPerformed     = newStatus(ErrLoginNotPerformed)
+	statusOperationInProgress   = newStatus(ErrOperationInProgress)
+	statusRiskControlRejected   = newStatus(ErrRiskControlRejected)
+	statusFeatureDisabled       = newStatus(ErrFeatureDisabled)
 
 	// 订单模块（模块代号 07）业务态 → HTTP 200
 	statusOrderNotFound      = newStatus(ErrOrderNotFound)
@@ -83,9 +86,11 @@ var (
 	statusOrderPaying        = newStatus(ErrOrderPaying)
 
 	// 参数/请求错误 → HTTP 400 Bad Request
-	statusRequestFail = newStatus(ErrRequestFail)
-	statusParams      = newStatus(ErrParams)
-	statusInvalidJson = newStatus(ErrInvalidJson)
+	statusRequestFail          = newStatus(ErrRequestFail)
+	statusParams               = newStatus(ErrParams)
+	statusInvalidJson          = newStatus(ErrInvalidJson)
+	statusRequestBodyTooLarge  = newStatus(ErrRequestBodyTooLarge)
+	statusUnsupportedMediaType = newStatus(ErrUnsupportedMediaType)
 
 	// 参数校验失败 → HTTP 422 Unprocessable Entity
 	statusValidateParams = newStatus(ErrValidateParams)
@@ -114,6 +119,7 @@ var (
 	statusConflict              = newStatus(ErrConflict)
 	statusAlreadyExists         = newStatus(ErrAlreadyExists)
 	statusUserAlreadyRegistered = newStatus(ErrUserAlreadyRegistered)
+	statusVersionConflict       = newStatus(ErrVersionConflict)
 
 	// 限流 → HTTP 429 Too Many Requests
 	statusTooManyRequests = newStatus(ErrTooManyRequests)
@@ -127,29 +133,99 @@ var (
 	// 服务不可用 → HTTP 503 Service Unavailable
 	statusServiceUnavailable    = newStatus(ErrServiceUnavailable)
 	statusDependencyUnavailable = newStatus(ErrDependencyUnavailable)
+	statusSystemMaintenance     = newStatus(ErrSystemMaintenance)
 
 	// 中间件/存储错误 → HTTP 500 Internal Server Error
-	statusElasticsearchServer = newStatus(ErrElasticsearchServer)
-	statusElasticsearchDSL    = newStatus(ErrElasticsearchDSL)
+	statusElasticsearchServer        = newStatus(ErrElasticsearchServer)
+	statusElasticsearchDSL           = newStatus(ErrElasticsearchDSL)
+	statusElasticsearchIndexNotFound = newStatus(ErrElasticsearchIndexNotFound)
+	statusElasticsearchBulkPartial   = newStatus(ErrElasticsearchBulkPartial)
 
-	statusMysqlServer = newStatus(ErrMysqlServer)
-	statusMysqlSQL    = newStatus(ErrMysqlSQL)
-	statusMysqlQuery  = newStatus(ErrMysqlQuery)
+	statusMysqlServer      = newStatus(ErrMysqlServer)
+	statusMysqlSQL         = newStatus(ErrMysqlSQL)
+	statusMysqlQuery       = newStatus(ErrMysqlQuery)
+	statusMysqlDeadlock    = newStatus(ErrMysqlDeadlock)
+	statusMysqlTransaction = newStatus(ErrMysqlTransaction)
 
 	statusMongoServer = newStatus(ErrMongoServer)
 	statusMongoDSL    = newStatus(ErrMongoDSL)
 	statusMongoQuery  = newStatus(ErrMongoQuery)
 
-	statusRedisServer = newStatus(ErrRedisServer)
-	statusRedisQuery  = newStatus(ErrRedisQuery)
+	statusRedisServer            = newStatus(ErrRedisServer)
+	statusRedisQuery             = newStatus(ErrRedisQuery)
+	statusRedisLockAcquireFailed = newStatus(ErrRedisLockAcquireFailed)
+	statusRedisLockLost          = newStatus(ErrRedisLockLost)
 
-	statusKafkaServer   = newStatus(ErrKafkaServer)
-	statusKafkaProducer = newStatus(ErrKafkaProducer)
-	statusKafkaConsumer = newStatus(ErrKafkaConsumer)
+	statusKafkaServer         = newStatus(ErrKafkaServer)
+	statusKafkaProducer       = newStatus(ErrKafkaProducer)
+	statusKafkaConsumer       = newStatus(ErrKafkaConsumer)
+	statusKafkaMessageDecode  = newStatus(ErrKafkaMessageDecode)
+	statusKafkaRetryExhausted = newStatus(ErrKafkaRetryExhausted)
 
-	statusRabbitMQServer   = newStatus(ErrRabbitMQServer)
-	statusRabbitMQProducer = newStatus(ErrRabbitMQProducer)
-	statusRabbitMQConsumer = newStatus(ErrRabbitMQConsumer)
+	statusRabbitMQServer         = newStatus(ErrRabbitMQServer)
+	statusRabbitMQProducer       = newStatus(ErrRabbitMQProducer)
+	statusRabbitMQConsumer       = newStatus(ErrRabbitMQConsumer)
+	statusRabbitMQMessageDecode  = newStatus(ErrRabbitMQMessageDecode)
+	statusRabbitMQRetryExhausted = newStatus(ErrRabbitMQRetryExhausted)
+
+	// 支付模块（模块代号 08）
+	statusPaymentNotFound           = newStatus(ErrPaymentNotFound)
+	statusPaymentAlreadyPaid        = newStatus(ErrPaymentAlreadyPaid)
+	statusPaymentClosed             = newStatus(ErrPaymentClosed)
+	statusPaymentExpired            = newStatus(ErrPaymentExpired)
+	statusPaymentMethodNotSupported = newStatus(ErrPaymentMethodNotSupported)
+	statusPayerIdentityMissing      = newStatus(ErrPayerIdentityMissing)
+	statusPaymentAmountMismatch     = newStatus(ErrPaymentAmountMismatch)
+	statusPaymentSignInvalid        = newStatus(ErrPaymentSignInvalid)
+	statusPaymentCallbackInvalid    = newStatus(ErrPaymentCallbackInvalid)
+	statusPaymentCreateFailed       = newStatus(ErrPaymentCreateFailed)
+	statusPaymentQueryFailed        = newStatus(ErrPaymentQueryFailed)
+	statusPaymentChannelUnavailable = newStatus(ErrPaymentChannelUnavailable)
+	statusRefundNotFound            = newStatus(ErrRefundNotFound)
+	statusRefundAmountExceeded      = newStatus(ErrRefundAmountExceeded)
+	statusRefundInProgress          = newStatus(ErrRefundInProgress)
+	statusRefundFailed              = newStatus(ErrRefundFailed)
+
+	// 账号与第三方登录模块（模块代号 09）
+	statusPhoneAlreadyBound      = newStatus(ErrPhoneAlreadyBound)
+	statusThirdPartyAlreadyBound = newStatus(ErrThirdPartyAlreadyBound)
+	statusThirdPartyNotBound     = newStatus(ErrThirdPartyNotBound)
+	statusThirdPartyAuthFailed   = newStatus(ErrThirdPartyAuthFailed)
+	statusThirdPartyUnavailable  = newStatus(ErrThirdPartyUnavailable)
+	statusSmsSendTooFrequent     = newStatus(ErrSmsSendTooFrequent)
+	statusSmsDailyLimitExceeded  = newStatus(ErrSmsDailyLimitExceeded)
+	statusSmsSendFailed          = newStatus(ErrSmsSendFailed)
+
+	// AI 大模型模块（模块代号 10）
+	statusLLMAuth              = newStatus(ErrLLMAuth)
+	statusLLMRateLimited       = newStatus(ErrLLMRateLimited)
+	statusLLMTimeout           = newStatus(ErrLLMTimeout)
+	statusLLMContextTooLong    = newStatus(ErrLLMContextTooLong)
+	statusLLMContentFiltered   = newStatus(ErrLLMContentFiltered)
+	statusLLMInvalidRequest    = newStatus(ErrLLMInvalidRequest)
+	statusLLMProviderError     = newStatus(ErrLLMProviderError)
+	statusLLMModelNotAvailable = newStatus(ErrLLMModelNotAvailable)
+	statusLLMStructuredOutput  = newStatus(ErrLLMStructuredOutput)
+	statusLLMStreamInterrupted = newStatus(ErrLLMStreamInterrupted)
+	statusLLMPricingMissing    = newStatus(ErrLLMPricingMissing)
+
+	// 文件模块（模块代号 11）
+	statusFileEmpty              = newStatus(ErrFileEmpty)
+	statusFileTooLarge           = newStatus(ErrFileTooLarge)
+	statusFileTypeNotAllowed     = newStatus(ErrFileTypeNotAllowed)
+	statusFileCountExceeded      = newStatus(ErrFileCountExceeded)
+	statusFileNotFound           = newStatus(ErrFileNotFound)
+	statusFileChecksumMismatch   = newStatus(ErrFileChecksumMismatch)
+	statusFileUploadFailed       = newStatus(ErrFileUploadFailed)
+	statusFileStorageUnavailable = newStatus(ErrFileStorageUnavailable)
+
+	// 邮件模块（模块代号 12）
+	statusEmailAlreadyBound       = newStatus(ErrEmailAlreadyBound)
+	statusEmailNotVerified        = newStatus(ErrEmailNotVerified)
+	statusEmailSendTooFrequent    = newStatus(ErrEmailSendTooFrequent)
+	statusEmailTemplateNotFound   = newStatus(ErrEmailTemplateNotFound)
+	statusEmailSendFailed         = newStatus(ErrEmailSendFailed)
+	statusEmailServiceUnavailable = newStatus(ErrEmailServiceUnavailable)
 )
 
 // --- 公开访问函数 ---
@@ -173,6 +249,9 @@ func StatusCaptchaInvalid() *Status        { return &statusCaptchaInvalid }
 func StatusCaptchaExpired() *Status        { return &statusCaptchaExpired }
 func StatusAccountLocked() *Status         { return &statusAccountLocked }
 func StatusLoginNotPerformed() *Status     { return &statusLoginNotPerformed }
+func StatusOperationInProgress() *Status   { return &statusOperationInProgress }
+func StatusRiskControlRejected() *Status   { return &statusRiskControlRejected }
+func StatusFeatureDisabled() *Status       { return &statusFeatureDisabled }
 
 // 订单模块（模块代号 07）业务态 → HTTP 200
 func StatusOrderNotFound() *Status      { return &statusOrderNotFound }
@@ -187,9 +266,11 @@ func StatusOrderPending() *Status       { return &statusOrderPending }
 func StatusOrderPaying() *Status        { return &statusOrderPaying }
 
 // 参数/请求错误 → HTTP 400 Bad Request
-func StatusRequestFail() *Status { return &statusRequestFail }
-func StatusParams() *Status      { return &statusParams }
-func StatusInvalidJson() *Status { return &statusInvalidJson }
+func StatusRequestFail() *Status          { return &statusRequestFail }
+func StatusParams() *Status               { return &statusParams }
+func StatusInvalidJson() *Status          { return &statusInvalidJson }
+func StatusRequestBodyTooLarge() *Status  { return &statusRequestBodyTooLarge }
+func StatusUnsupportedMediaType() *Status { return &statusUnsupportedMediaType }
 
 // 参数校验失败 → HTTP 422 Unprocessable Entity
 func StatusValidateParams() *Status { return &statusValidateParams }
@@ -218,6 +299,7 @@ func StatusRecordNotFound() *Status { return &statusRecordNotFound }
 func StatusConflict() *Status              { return &statusConflict }
 func StatusAlreadyExists() *Status         { return &statusAlreadyExists }
 func StatusUserAlreadyRegistered() *Status { return &statusUserAlreadyRegistered }
+func StatusVersionConflict() *Status       { return &statusVersionConflict }
 
 // 限流 → HTTP 429 Too Many Requests
 func StatusTooManyRequests() *Status { return &statusTooManyRequests }
@@ -231,26 +313,96 @@ func StatusDeadlineExceeded() *Status { return &statusDeadlineExceeded }
 // 服务不可用 → HTTP 503 Service Unavailable
 func StatusServiceUnavailable() *Status    { return &statusServiceUnavailable }
 func StatusDependencyUnavailable() *Status { return &statusDependencyUnavailable }
+func StatusSystemMaintenance() *Status     { return &statusSystemMaintenance }
 
 // 中间件/存储错误 → HTTP 500 Internal Server Error
-func StatusElasticsearchServer() *Status { return &statusElasticsearchServer }
-func StatusElasticsearchDSL() *Status    { return &statusElasticsearchDSL }
+func StatusElasticsearchServer() *Status        { return &statusElasticsearchServer }
+func StatusElasticsearchDSL() *Status           { return &statusElasticsearchDSL }
+func StatusElasticsearchIndexNotFound() *Status { return &statusElasticsearchIndexNotFound }
+func StatusElasticsearchBulkPartial() *Status   { return &statusElasticsearchBulkPartial }
 
-func StatusMysqlServer() *Status { return &statusMysqlServer }
-func StatusMysqlSQL() *Status    { return &statusMysqlSQL }
-func StatusMysqlQuery() *Status  { return &statusMysqlQuery }
+func StatusMysqlServer() *Status      { return &statusMysqlServer }
+func StatusMysqlSQL() *Status         { return &statusMysqlSQL }
+func StatusMysqlQuery() *Status       { return &statusMysqlQuery }
+func StatusMysqlDeadlock() *Status    { return &statusMysqlDeadlock }
+func StatusMysqlTransaction() *Status { return &statusMysqlTransaction }
 
 func StatusMongoServer() *Status { return &statusMongoServer }
 func StatusMongoDSL() *Status    { return &statusMongoDSL }
 func StatusMongoQuery() *Status  { return &statusMongoQuery }
 
-func StatusRedisServer() *Status { return &statusRedisServer }
-func StatusRedisQuery() *Status  { return &statusRedisQuery }
+func StatusRedisServer() *Status            { return &statusRedisServer }
+func StatusRedisQuery() *Status             { return &statusRedisQuery }
+func StatusRedisLockAcquireFailed() *Status { return &statusRedisLockAcquireFailed }
+func StatusRedisLockLost() *Status          { return &statusRedisLockLost }
 
-func StatusKafkaServer() *Status   { return &statusKafkaServer }
-func StatusKafkaProducer() *Status { return &statusKafkaProducer }
-func StatusKafkaConsumer() *Status { return &statusKafkaConsumer }
+func StatusKafkaServer() *Status         { return &statusKafkaServer }
+func StatusKafkaProducer() *Status       { return &statusKafkaProducer }
+func StatusKafkaConsumer() *Status       { return &statusKafkaConsumer }
+func StatusKafkaMessageDecode() *Status  { return &statusKafkaMessageDecode }
+func StatusKafkaRetryExhausted() *Status { return &statusKafkaRetryExhausted }
 
-func StatusRabbitMQServer() *Status   { return &statusRabbitMQServer }
-func StatusRabbitMQProducer() *Status { return &statusRabbitMQProducer }
-func StatusRabbitMQConsumer() *Status { return &statusRabbitMQConsumer }
+func StatusRabbitMQServer() *Status         { return &statusRabbitMQServer }
+func StatusRabbitMQProducer() *Status       { return &statusRabbitMQProducer }
+func StatusRabbitMQConsumer() *Status       { return &statusRabbitMQConsumer }
+func StatusRabbitMQMessageDecode() *Status  { return &statusRabbitMQMessageDecode }
+func StatusRabbitMQRetryExhausted() *Status { return &statusRabbitMQRetryExhausted }
+
+// 支付 → 业务态 200，金额/回调参数 400，验签 401，发起/查询/退款失败 500，渠道不可用 503
+func StatusPaymentNotFound() *Status           { return &statusPaymentNotFound }
+func StatusPaymentAlreadyPaid() *Status        { return &statusPaymentAlreadyPaid }
+func StatusPaymentClosed() *Status             { return &statusPaymentClosed }
+func StatusPaymentExpired() *Status            { return &statusPaymentExpired }
+func StatusPaymentMethodNotSupported() *Status { return &statusPaymentMethodNotSupported }
+func StatusPayerIdentityMissing() *Status      { return &statusPayerIdentityMissing }
+func StatusPaymentAmountMismatch() *Status     { return &statusPaymentAmountMismatch }
+func StatusPaymentSignInvalid() *Status        { return &statusPaymentSignInvalid }
+func StatusPaymentCallbackInvalid() *Status    { return &statusPaymentCallbackInvalid }
+func StatusPaymentCreateFailed() *Status       { return &statusPaymentCreateFailed }
+func StatusPaymentQueryFailed() *Status        { return &statusPaymentQueryFailed }
+func StatusPaymentChannelUnavailable() *Status { return &statusPaymentChannelUnavailable }
+func StatusRefundNotFound() *Status            { return &statusRefundNotFound }
+func StatusRefundAmountExceeded() *Status      { return &statusRefundAmountExceeded }
+func StatusRefundInProgress() *Status          { return &statusRefundInProgress }
+func StatusRefundFailed() *Status              { return &statusRefundFailed }
+
+// 账号与第三方登录 → 绑定冲突 409，业务态 200，第三方不可用 503，发送失败 500
+func StatusPhoneAlreadyBound() *Status      { return &statusPhoneAlreadyBound }
+func StatusThirdPartyAlreadyBound() *Status { return &statusThirdPartyAlreadyBound }
+func StatusThirdPartyNotBound() *Status     { return &statusThirdPartyNotBound }
+func StatusThirdPartyAuthFailed() *Status   { return &statusThirdPartyAuthFailed }
+func StatusThirdPartyUnavailable() *Status  { return &statusThirdPartyUnavailable }
+func StatusSmsSendTooFrequent() *Status     { return &statusSmsSendTooFrequent }
+func StatusSmsDailyLimitExceeded() *Status  { return &statusSmsDailyLimitExceeded }
+func StatusSmsSendFailed() *Status          { return &statusSmsSendFailed }
+
+// AI 大模型 → 用户可修正 200，我方配置/实现问题 500，供应商侧故障 503
+func StatusLLMAuth() *Status              { return &statusLLMAuth }
+func StatusLLMRateLimited() *Status       { return &statusLLMRateLimited }
+func StatusLLMTimeout() *Status           { return &statusLLMTimeout }
+func StatusLLMContextTooLong() *Status    { return &statusLLMContextTooLong }
+func StatusLLMContentFiltered() *Status   { return &statusLLMContentFiltered }
+func StatusLLMInvalidRequest() *Status    { return &statusLLMInvalidRequest }
+func StatusLLMProviderError() *Status     { return &statusLLMProviderError }
+func StatusLLMModelNotAvailable() *Status { return &statusLLMModelNotAvailable }
+func StatusLLMStructuredOutput() *Status  { return &statusLLMStructuredOutput }
+func StatusLLMStreamInterrupted() *Status { return &statusLLMStreamInterrupted }
+func StatusLLMPricingMissing() *Status    { return &statusLLMPricingMissing }
+
+// 文件 → 校验类 400，不存在 404，上传失败 500，存储不可用 503
+func StatusFileEmpty() *Status              { return &statusFileEmpty }
+func StatusFileTooLarge() *Status           { return &statusFileTooLarge }
+func StatusFileTypeNotAllowed() *Status     { return &statusFileTypeNotAllowed }
+func StatusFileCountExceeded() *Status      { return &statusFileCountExceeded }
+func StatusFileNotFound() *Status           { return &statusFileNotFound }
+func StatusFileChecksumMismatch() *Status   { return &statusFileChecksumMismatch }
+func StatusFileUploadFailed() *Status       { return &statusFileUploadFailed }
+func StatusFileStorageUnavailable() *Status { return &statusFileStorageUnavailable }
+
+// 邮件 → 绑定冲突 409，业务态 200，发送失败 500，服务不可用 503
+func StatusEmailAlreadyBound() *Status       { return &statusEmailAlreadyBound }
+func StatusEmailNotVerified() *Status        { return &statusEmailNotVerified }
+func StatusEmailSendTooFrequent() *Status    { return &statusEmailSendTooFrequent }
+func StatusEmailTemplateNotFound() *Status   { return &statusEmailTemplateNotFound }
+func StatusEmailSendFailed() *Status         { return &statusEmailSendFailed }
+func StatusEmailServiceUnavailable() *Status { return &statusEmailServiceUnavailable }

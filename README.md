@@ -160,6 +160,24 @@ safe := goerr.SanitizeForClient(msg, goerr.SanitizeOptions{
 - 若某个服务采用“所有统一响应体都返回 HTTP 200”的协议，可在网关层忽略 `HTTPCode()`，只使用 `Code()` 与 `Message()`
 - 错误码一经发布不得复用；废弃码保留占位
 
+已分配的模块：
+
+| 模块 | 用途 | 模块 | 用途 |
+| --- | --- | --- | --- |
+| `00` | 通用 | `07` | 订单 |
+| `01` | Elasticsearch | `08` | 支付（含退款） |
+| `02` | MySQL | `09` | 账号与第三方登录 |
+| `03` | MongoDB | `10` | AI 大模型 |
+| `04` | Redis | `11` | 文件 |
+| `05` | Kafka | `12` | 邮件 |
+| `06` | RabbitMQ | | |
+
+完整清单（码 → HTTP → 默认文案）见 `errcode.go` 的 `codeTable`，它是唯一真源：`Code.Message()`
+与预构建的 `StatusXxx()` 都从那里取值。
+
+**选码原则**：基础设施模块（`01`~`06`）的码描述「哪个组件的哪种故障」，对外文案由调用方在 `Message()`
+里补充业务含义；业务模块（`07`~`12`）的码直接承载业务语义，可以原样返给客户端。
+
 ---
 
 ## 类型与常用 API
@@ -226,6 +244,94 @@ func mapDBError(err error) error {
 	default:
 		return goerr.New(err, goerr.StatusMysqlQuery(), "query failed")
 	}
+}
+```
+
+---
+
+## AI 大模型错误映射
+
+`goerr` 零依赖，不引入 provider 包，映射写在业务侧的 adapter 里。模块 `10` 的码按
+**「谁能解决」** 划分 HTTP：用户能自行修正的给 `200`，我方配置或实现问题给 `500`，供应商侧故障给 `503`。
+
+```go
+import "github.com/gtkit/go-llm-provider/v2/provider"
+
+func fromLLM(err error) error {
+	if err == nil {
+		return nil
+	}
+	if pe, ok := errors.AsType[*provider.ProviderError](err); ok {
+		switch pe.Code {
+		case provider.ErrorCodeAuth:
+			return goerr.New(err, goerr.StatusLLMAuth()) // 我们的 key 配错了，对用户是内部错误
+		case provider.ErrorCodeRateLimit:
+			return goerr.New(err, goerr.StatusLLMRateLimited())
+		case provider.ErrorCodeTimeout:
+			return goerr.New(err, goerr.StatusLLMTimeout())
+		case provider.ErrorCodeContextLength:
+			return goerr.New(err, goerr.StatusLLMContextTooLong()) // 用户能改，给 200
+		case provider.ErrorCodeContentFilter:
+			return goerr.New(err, goerr.StatusLLMContentFiltered())
+		case provider.ErrorCodeInvalidRequest:
+			return goerr.New(err, goerr.StatusLLMInvalidRequest()) // 我们拼错了请求
+		}
+	}
+	switch {
+	case errors.Is(err, provider.ErrQuotaExceeded):
+		return goerr.New(err, goerr.StatusQuotaExceeded()) // 用户配额，复用通用码
+	case errors.Is(err, provider.ErrStructuredDecode), errors.Is(err, provider.ErrStructuredValidation):
+		return goerr.New(err, goerr.StatusLLMStructuredOutput())
+	case errors.Is(err, provider.ErrModelNotPriced), errors.Is(err, provider.ErrInvalidPricing):
+		return goerr.New(err, goerr.StatusLLMPricingMissing())
+	}
+	return goerr.New(err, goerr.StatusLLMProviderError())
+}
+```
+
+`ProviderError` 的 `Retryable` / `RetryAfter` 是重试策略的输入，留在 adapter 里决定是否重试，不进错误码。
+
+---
+
+## 支付回调：用 HTTPCode() 控制渠道重试
+
+微信 / 支付宝的异步通知响应体格式由渠道规定，不走统一 JSON；但 `HTTPCode()` 仍然有用——
+**验签失败返 4xx 让渠道停止重试，我方处理失败返 5xx 让渠道继续重试**：
+
+```go
+func notify(c *gin.Context) {
+	err := svc.HandlePayNotify(c.Request)
+	e := goerr.Convert(err)
+	if err != nil {
+		// 金额不符、验签失败是安全事件，日志级别拉高并接告警
+		if goerr.HasCode(err, goerr.ErrPaymentSignInvalid) || goerr.HasCode(err, goerr.ErrPaymentAmountMismatch) {
+			logger.Error("payment security event", zap.Error(err))
+		}
+	}
+	c.String(e.HTTPCode(), channelAck(e.Code())) // 4xx 停止重试，5xx 继续重试
+}
+```
+
+---
+
+## 消息队列：用错误码作为死信判据
+
+`ErrXxxMessageDecode`（反序列化失败，重投多少次都不会成功）与 `ErrXxxRetryExhausted`
+（重试次数耗尽）是**进死信队列的两个判据**，有独立码才能在死信里按码归类：
+
+```go
+func (c *consumer) handle(ctx context.Context, msg []byte) error {
+	var evt OrderEvent
+	if err := json.Unmarshal(msg, &evt); err != nil {
+		return goerr.New(err, goerr.StatusKafkaMessageDecode()) // 不可重试，直接进死信
+	}
+	if err := c.svc.Apply(ctx, evt); err != nil {
+		if attempts >= maxRetry {
+			return goerr.Wrap(err, "retry exhausted") // 保留原始业务码，外层按 attempts 决定进死信
+		}
+		return err
+	}
+	return nil
 }
 ```
 
