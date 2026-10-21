@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -183,6 +184,152 @@ func TestItem_FormatVerbose(t *testing.T) {
 	}
 }
 
+func TestItem_FormatTextContract(t *testing.T) {
+	t.Parallel()
+	item := New(io.EOF, StatusParams(), "bad")
+	for _, tt := range []struct {
+		name   string
+		item   *Item
+		format string
+		want   string
+	}{
+		{name: "value", item: item, format: "%v", want: "bad: EOF"},
+		{name: "string", item: item, format: "%s", want: "bad: EOF"},
+		{name: "quoted", item: item, format: "%q", want: `"bad: EOF"`},
+		{name: "unknown", item: item, format: "%d", want: "%!d(*goerr.Item=bad: EOF)"},
+		{name: "width and precision", item: item, format: "%8.2s", want: "bad: EOF"},
+		{name: "alternate", item: item, format: "%#v", want: "bad: EOF"},
+		{name: "nil verbose", format: "%+v", want: ""},
+		{name: "nil quoted", format: "%q", want: `""`},
+		{name: "zero verbose", item: &Item{}, format: "%+v", want: ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := fmt.Sprintf(tt.format, tt.item); got != tt.want {
+				t.Fatalf("format %q = %q, want %q", tt.format, got, tt.want)
+			}
+		})
+	}
+}
+
+type formatTestState struct {
+	verbose bool
+	failAt  int
+	limit   int
+	calls   int
+	failure error
+	written []byte
+}
+
+func (s *formatTestState) Width() (int, bool)     { return 0, false }
+func (s *formatTestState) Precision() (int, bool) { return 0, false }
+func (s *formatTestState) Flag(c int) bool        { return c == '+' && s.verbose }
+
+func (s *formatTestState) Write(data []byte) (int, error) {
+	s.calls++
+	if s.calls == s.failAt {
+		n := min(s.limit, len(data))
+		s.written = append(s.written, data[:n]...)
+		s.failure = io.ErrClosedPipe
+		return n, s.failure
+	}
+	s.written = append(s.written, data...)
+	return len(data), nil
+}
+
+func TestItem_FormatStopsAfterWriteError(t *testing.T) {
+	t.Parallel()
+	item := New(io.EOF, StatusParams(), "bad")
+	stack := slices.Clone(item.stack)
+	if len(stack) < 2 {
+		t.Fatal("the fixture must have caller frames to detect writes after failure")
+	}
+	for _, tt := range []struct {
+		name    string
+		verb    rune
+		verbose bool
+		failAt  int
+		limit   int
+		want    string
+	}{
+		{name: "before verbose text", verb: 'v', verbose: true, failAt: 1},
+		{name: "partial verbose text", verb: 'v', verbose: true, failAt: 1, limit: 3, want: "bad"},
+		{name: "before frame", verb: 'v', verbose: true, failAt: 2, want: "bad: EOF"},
+		{name: "partial frame", verb: 'v', verbose: true, failAt: 2, limit: 2, want: "bad: EOF\n\t"},
+		{name: "value", verb: 'v', failAt: 1, limit: 3, want: "bad"},
+		{name: "string", verb: 's', failAt: 1, limit: 3, want: "bad"},
+		{name: "quoted", verb: 'q', failAt: 1, limit: 4, want: `"bad`},
+		{name: "unknown", verb: 'd', failAt: 1, limit: 3, want: "%!d"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			state := &formatTestState{verbose: tt.verbose, failAt: tt.failAt, limit: tt.limit}
+			item.Format(state, tt.verb)
+			if !errors.Is(state.failure, io.ErrClosedPipe) || state.calls != tt.failAt || string(state.written) != tt.want {
+				t.Fatalf("Format must stop after the failed write: calls=%d bytes=%q failure=%v", state.calls, state.written, state.failure)
+			}
+			if item.Error() != "bad: EOF" || item.Message() != "bad" || item.Code() != ErrParams ||
+				item.HTTPCode() != http.StatusBadRequest || item.Unwrap() != io.EOF || !slices.Equal(item.stack, stack) {
+				t.Fatal("formatting failure must preserve the original business error, cause and stack")
+			}
+		})
+	}
+}
+
+func TestItem_FprintfWriterFailure(t *testing.T) {
+	t.Parallel()
+	item := New(io.EOF, StatusParams(), "bad")
+	want := fmt.Sprintf("%+v", item)
+	for _, limit := range []int{0, 7} {
+		t.Run(fmt.Sprintf("accepted_%d_bytes", limit), func(t *testing.T) {
+			t.Parallel()
+			writer := &formatTestState{failAt: 1, limit: limit}
+			n, err := fmt.Fprintf(writer, "%+v", item)
+			if n != limit || !errors.Is(err, io.ErrClosedPipe) || writer.calls != 1 || string(writer.written) != want[:limit] {
+				t.Fatalf("Fprintf must return the writer's partial result: n=%d bytes=%q err=%v", n, writer.written, err)
+			}
+			if item.Error() != "bad: EOF" || item.Message() != "bad" || !errors.Is(item, io.EOF) || errors.Is(item, io.ErrClosedPipe) {
+				t.Fatal("the writer failure must remain separate from the business error")
+			}
+		})
+	}
+}
+
+func TestIsCompatibility(t *testing.T) {
+	t.Parallel()
+	var typedNil *Item
+	item := New(io.EOF, StatusParams(), "bad")
+	otherItem := New(io.EOF, StatusParams(), "bad")
+	for _, tt := range []struct {
+		name   string
+		err    error
+		target error
+		want   bool
+	}{
+		{name: "both nil", want: true},
+		{name: "nil error", target: io.EOF},
+		{name: "nil target", err: io.EOF},
+		{name: "same sentinel", err: io.EOF, target: io.EOF, want: true},
+		{name: "different sentinel", err: io.EOF, target: io.ErrUnexpectedEOF},
+		{name: "same text distinct errors", err: errors.New("same"), target: errors.New("same")},
+		{name: "standard wrapper", err: fmt.Errorf("load: %w", io.EOF), target: io.EOF, want: true},
+		{name: "Item cause", err: item, target: io.EOF, want: true},
+		{name: "Item identity", err: item, target: item, want: true},
+		{name: "same code distinct Items", err: item, target: otherItem},
+		{name: "Join branch", err: errors.Join(io.ErrUnexpectedEOF, item), target: io.EOF, want: true},
+		{name: "typed nil target", err: typedNil, target: typedNil, want: true},
+		{name: "typed nil is not nil", err: typedNil},
+		{name: "typed nil error absent", target: typedNil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := Is(tt.err, tt.target); got != tt.want || got != errors.Is(tt.err, tt.target) {
+				t.Fatalf("Is(%v, %v) = %t, want %t and standard errors.Is compatibility", tt.err, tt.target, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestItem_StatusInfo_nilStatus(t *testing.T) {
 	item := &Item{msg: "m", clientMsg: "m"}
 	if item.StatusInfo().Code() != ErrInternalServer {
@@ -287,7 +434,7 @@ func TestConvert(t *testing.T) {
 // stackFrames 返回 %+v 里的栈帧行。
 func stackFrames(err error) []string {
 	var out []string
-	for _, l := range strings.Split(fmt.Sprintf("%+v", err), "\n") {
+	for l := range strings.SplitSeq(fmt.Sprintf("%+v", err), "\n") {
 		if strings.HasPrefix(l, "\t") {
 			out = append(out, l)
 		}

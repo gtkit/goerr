@@ -8,6 +8,7 @@ import (
 	"io"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/gtkit/goerr"
@@ -217,5 +218,56 @@ func TestDiagnosticFailureSkipsOutputs(t *testing.T) {
 				t.Fatal("diagnostic failure must leave the original business error available")
 			}
 		})
+	}
+}
+
+func TestDiagnosticConcurrentOutlets(t *testing.T) {
+	t.Parallel()
+	leftCause, rightCause := errors.New("call 13900001111"), errors.New("user@example.com")
+	left := goerr.New(leftCause, goerr.StatusParams(), "invalid input")
+	right := goerr.New(rightCause, goerr.StatusNotFound(), "not found")
+	input := fmt.Errorf("request failed: %w", errors.Join(left, right))
+	diagnostic, err := goerr.Inspect(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := goerr.Inspect(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diagnostic.Code != goerr.ErrParams || len(diagnostic.Causes) != 6 ||
+		diagnostic.Causes[4].Code != goerr.ErrNotFound || goerr.HasCode(input, goerr.ErrNotFound) {
+		t.Fatal("the primary status must retain the first Item while the other branch remains diagnostic data")
+	}
+	wantError := goerr.RedactForLog(input.Error())
+	var workers sync.WaitGroup
+	for range 16 {
+		workers.Go(func() {
+			// 同一快照只读共享；每个 worker 独占自己的 writer。
+			var textTarget, jsonTarget bytes.Buffer
+			for _, output := range []func(goerr.Diagnostic) error{
+				textDiagnosticOutput(&textTarget, "load_profile", "example-request"),
+				jsonDiagnosticOutput(&jsonTarget, "load_profile", "example-request"),
+			} {
+				if err := output(diagnostic); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+			var record diagnosticLogRecord
+			if err := json.Unmarshal(jsonTarget.Bytes(), &record); err != nil {
+				t.Error(err)
+				return
+			}
+			if record.Code != goerr.ErrParams || record.CauseCount != 6 || record.Error != wantError ||
+				!strings.Contains(textTarget.String(), wantError) || strings.Contains(textTarget.String(), "13900001111") {
+				t.Error("concurrent outlets must preserve the selected fields and redact the original text")
+			}
+		})
+	}
+	workers.Wait()
+	if !reflect.DeepEqual(diagnostic, before) || goerr.Convert(input) != left ||
+		input.Error() != before.Error || !errors.Is(input, leftCause) || !errors.Is(input, rightCause) {
+		t.Fatal("parallel read-only outputs must preserve the shared snapshot and original business error")
 	}
 }

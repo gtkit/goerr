@@ -26,6 +26,8 @@
 3. 业务网关或 BFF 组装 HTTP 响应时，请用 **`Code()` + `Message()` + `HTTPCode()`**（以及你们协议里约定的字段名）；**不要**把 `Error()` 整段直接回给前端，除非你们明确允许暴露内部信息。
 4. 开发排查问题时，用 **`Inspect(err)`** 同时读取根全文与已有起源栈，选择字段并脱敏后记录；只看 `Message()` 会丢掉底层原因。`fmt.Sprintf("%+v", item)` 适合检查 `Item` 的文本格式，标准外层包装不保证转发这一格式。
 
+直接调用 `item.Format(state, verb)` 时，状态写入报错会立即停止后续写出，已写出的部分不会自动撤销。`fmt.Formatter` 的方法没有 error 返回值；使用 `fmt.Fprintf(w, "%+v", item)` 时，调用方仍须处理其返回的字节数和 writer 错误。格式化失败不会替换原业务错误或改变其状态、文案与 cause。
+
 下面示例演示「响应体用 Message，日志用 Error」：
 
 ```go
@@ -146,6 +148,8 @@ fmt.Println(diagnostic.Message) // invalid input
 ```
 
 `Diagnostic` 的 `Code`、`HTTPCode`、`Message` 与旧 `Convert(input)` 的主状态选择一致；`Error` 则始终是根 `input.Error()` 的完整原文。标准包装前缀保留，`Convert`、`HasCode` 的首个 `Item` 选择不变。自定义 `As` 提供的虚拟 `Item` 可以决定主状态，但不会成为实际原因节点。
+
+诊断能力只新增三个导出符号：读取函数 `Inspect`、快照类型 `Diagnostic` 和原因节点类型 `Cause`。跨包构造这两个值类型时须使用字段名，通常直接使用 `Inspect` 的返回值即可。`HasCode` 只比较首个匹配 `Item` 的业务码，不会因为快照包含整个原因树就改为查询所有 Join 分支。
 
 `Causes` 按 `Unwrap() error` / `Unwrap() []error` 的实际子项顺序前序展开，根的 `Parent=-1`，其他 `Parent` 指向直接父索引。`HasCode` 区分普通节点与实际实现 `goerr.Error` 的非 nil 节点；原因节点的业务码不会替换主状态。同一对象在不同分支分别列出；一条路径上共享同一 PC 切片的栈只在首次实际携带它的节点保存，兄弟分支各自保存。
 
@@ -279,16 +283,14 @@ err := goerr.New(nil, st, "自定义文案")
 
 MySQL 查询「没有这条数据」时，建议使用 `StatusRecordNotFound()`；`StatusMysqlQuery()` 只用于 SQL 已执行但查询过程本身出错。
 
-若注册自定义错误码，可先调用 `ValidateCode` 做预检查；若希望包级变量初始化时强制校验，使用 `MustNewStatus`，非法 code 会直接 panic。
+若注册自定义错误码，可先调用 `ValidateCode` 做预检查；若希望包级变量初始化时强制校验，使用 `MustNewStatus`，非法 code 会直接 panic。已有业务语义优先使用预构建状态，例如订单过期：
 
 ```go
-code := goerr.Code(10010701)
-if err := goerr.ValidateCode(code); err != nil {
-	return err
-}
-status := goerr.MustNewStatus(code, 200, "Order expired")
-_ = status
+err := goerr.New(nil, goerr.StatusOrderExpired(), "Order expired")
+// err.Code() == goerr.ErrOrderExpired（10010707）
 ```
+
+`10010701` 已分配给 `ErrOrderNotFound`，不能复用为订单过期或其他语义。
 
 ---
 
@@ -372,24 +374,13 @@ func fromLLM(err error) error {
 
 ---
 
-## 支付回调：用 HTTPCode() 控制渠道重试
+## 支付回调：按渠道协议应答
 
-微信 / 支付宝的异步通知响应体格式由渠道规定，不走统一 JSON；但 `HTTPCode()` 仍然有用——
-**验签失败返 4xx 让渠道停止重试，我方处理失败返 5xx 让渠道继续重试**：
+`HTTPCode()` 是本包的业务响应映射，不能单独决定支付渠道是否重试。以[微信支付 APP 支付成功回调通知](https://pay.wechatpay.cn/doc/v3/merchant/4013070368)的 2.2、2.3 节为例：接收成功应答 `200` 或 `204`，无需响应体；验签失败使用 `4xx` 或 `5xx` 及协议要求的失败响应体。接收失败或超时会按该接口策略重复通知，**不能把 4xx 当作停止重试的通用规则**。
 
-```go
-func notify(c *gin.Context) {
-	err := svc.HandlePayNotify(c.Request)
-	e := goerr.Convert(err)
-	if err != nil {
-		// 金额不符、验签失败是安全事件，日志级别拉高并接告警
-		if goerr.HasCode(err, goerr.ErrPaymentSignInvalid) || goerr.HasCode(err, goerr.ErrPaymentAmountMismatch) {
-			logger.Error("payment security event", zap.Error(err))
-		}
-	}
-	c.String(e.HTTPCode(), channelAck(e.Code())) // 4xx 停止重试，5xx 继续重试
-}
-```
+调用方的渠道适配层按具体接口协议决定 HTTP 状态、响应体和成功确认条件，不直接把 `Convert(err).HTTPCode()` 与业务码拼成通用 ACK。其他渠道、其他通知接口应分别核对协议；goerr 不实现渠道应答、幂等或重试策略。
+
+金额不符与验签失败仍分别使用 `ErrPaymentAmountMismatch`、`ErrPaymentSignInvalid` 分类和告警；本次说明不改变它们的业务码或 HTTP 映射。日志沿用上文的快照出口，显式选择字段并脱敏，避免直接记录含内部信息的原始错误。
 
 ---
 

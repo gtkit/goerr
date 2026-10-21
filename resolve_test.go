@@ -21,7 +21,7 @@ func TestResolveStatus(t *testing.T) {
 	if err != nil || got != st {
 		t.Fatalf("*Status: got %v err %v", got, err)
 	}
-	got, err = ResolveStatus((func() *Status)(nil), fb)
+	_, err = ResolveStatus((func() *Status)(nil), fb)
 	if err == nil {
 		t.Fatal("nil func should error")
 	}

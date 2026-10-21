@@ -77,17 +77,22 @@ func (i *Item) Unwrap() error {
 // Format 支持 %+v 输出调用栈（配合 zap 等日志库的 Verbose 模式）。
 // msg 本身已含整条 cause 链的文本、stack 整条链共享一份，因此不再递归打印 cause，
 // 否则 n 层 Wrap 会让日志量按 n² 膨胀、同一份栈重复 n 遍。
+// State 写入报错后立即停止；Format 没有错误返回值，不能代替外层 fmt 写入的错误处理。
 func (i *Item) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			fmt.Fprint(s, i.Error())
+			if _, err := fmt.Fprint(s, i.Error()); err != nil {
+				return
+			}
 			if i != nil {
 				frames := runtime.CallersFrames(i.stack)
 				for {
 					f, more := frames.Next()
 					if f.Function != "" {
-						fmt.Fprintf(s, "\n\t%s:%d %s", f.File, f.Line, f.Function)
+						if _, err := fmt.Fprintf(s, "\n\t%s:%d %s", f.File, f.Line, f.Function); err != nil {
+							return
+						}
 					}
 					if !more {
 						break
@@ -98,11 +103,17 @@ func (i *Item) Format(s fmt.State, verb rune) {
 		}
 		fallthrough
 	case 's':
-		fmt.Fprint(s, i.Error())
+		if _, err := fmt.Fprint(s, i.Error()); err != nil {
+			return
+		}
 	case 'q':
-		fmt.Fprintf(s, "%q", i.Error())
+		if _, err := fmt.Fprintf(s, "%q", i.Error()); err != nil {
+			return
+		}
 	default:
-		fmt.Fprintf(s, "%%!%c(*goerr.Item=%s)", verb, i.Error())
+		if _, err := fmt.Fprintf(s, "%%!%c(*goerr.Item=%s)", verb, i.Error()); err != nil {
+			return
+		}
 	}
 }
 
