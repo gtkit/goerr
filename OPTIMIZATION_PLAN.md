@@ -1857,9 +1857,9 @@ A/A 每标签 16 个样本，n=16/k=4；以下 A、B 都是同一个 old.test，
 | R0 发布方案 | 最新指令/规则/原计划/错误记录与远端已读 | 保存本节并完整回读，冻结 26 文件、18 源文件及十份差异清单 | 实际方案回读、before/preflight、版本/分支/目标来源 | 已完成：plan-readback.json 记录全文回读与冻结核对；事实/授权/目标不符即停，不先提交再补计划 |
 | R1 发布元数据与差异 | R0 完成，v1.5.0 确认不存在 | 只整理 CHANGELOG 版本/日期，审阅现有全部 diff，核对显式文件清单；git diff --check，必要时仅清本轮已改文档行的非语义空白 | CHANGELOG/Version/module 一致，无泄密/额外文件；运行/测试/规则/Makefile 指纹不变 | 已完成：版本/日期及十份差异已核对，空白修正后 diff --check 退出 0；出现新运行差异、版本冲突或未知文件即停 |
 | R2 当前工具链复核 | 元数据与代码范围已冻结、Go/lint 入口核实 | 按 21.2 运行必要发布检查，保存独立 argv/cwd/所选环境/UTC/退出码/完整输出，回读覆盖率与基准样本 | build/vet/lint/race/coverage 通过，fix 输出空，根包≥80%；基准 count=3 实际完成且分配核对，历史严格区间明确分开 | 已完成：八项命令退出 0；330 用例/6 Example/两包通过，384/384 覆盖，27 组各三次基准完成；跨 trimpath 观察已核对；失败先记录并停依赖发布步骤，不降门槛或改代码 |
-| R3 提交与远端 tag | R1/R2 通过，远端仍无冲突，当前文件与验证指纹一致 | 显式暂存十份差异、回读 staged diff、创建 C1；干净后创建 v1.5.0 附注 tag，正常原子推送 main+该 tag 到 gtkit | 提交对象/文件清单、tag 类型/剥离目标、push 退出 0；ls-remote 精确验证 main/tag 与 C1 一致 | 待执行；提交/推送拒绝、远端变化或已有同名标签即停，不强推/删重打/擅自合并 |
-| R4 GitHub Release | main 与 tag 已真实推送且一致 | 在已登录仓库页面选择现有 v1.5.0 标签，填写已核对中文说明，发布正式 Release，回读页面并保存可核对截图 | 正式 Release URL/版本/日期/标签目标及页面可见结果，无草稿或预发布误标 | 待执行；认证/权限/CAPTCHA/页面异常先记录，完成不依赖该障碍的部分，不猜发布成功 |
-| R5 实际结果与交付 | 已完成的发布动作有真实证据 | 只写本节的实际检查与 C1/tag/push/Release 状态，回读；提交发布回执文档 C2 并仅推送 main，最终核对工作区/远端/tag/Release | 文档回读与受保护指纹、C2/push 实际结果、干净状态、固定 tag、链接与保留的未知项 | 待执行；不补做用户暂缓项，不移动 tag 或自动部署生产；部分失败如实汇报并保留可恢复状态 |
+| R3 提交与远端 tag | R1/R2 通过，远端仍无冲突，当前文件与验证指纹一致 | 显式暂存十份差异、回读 staged diff、创建 C1；干净后创建 v1.5.0 附注 tag，正常原子推送 main+该 tag 到 gtkit | 提交对象/文件清单、tag 类型/剥离目标、push 退出 0；ls-remote 精确验证 main/tag 与 C1 一致 | 已完成：C1=9a6f745，附注标签及 main 原子 push 退出 0，远端精确一致；不强推/删重打/擅自合并 |
+| R4 GitHub Release | main 与 tag 已真实推送且一致 | 在已登录仓库页面选择现有 v1.5.0 标签，填写已核对中文说明，发布正式 Release，回读页面并保存可核对截图 | 正式 Release URL/版本/日期/标签目标及页面可见结果，无草稿或预发布误标 | 已完成：正式 Release v1.5.0 页面显示 Latest、标签与 C1，一并保存截图和页面证据 |
+| R5 实际结果与交付 | 已完成的发布动作有真实证据 | 只写本节的实际检查与 C1/tag/push/Release 状态，回读；提交发布回执文档 C2 并仅推送 main，最终核对工作区/远端/tag/Release | 文档回读与受保护指纹、C2/push 实际结果、干净状态、固定 tag、链接与保留的未知项 | 实际发布结果已落盘并回读；按本步骤提交/推送 C2，C2 自身结果由最终外部回执确认，避免自引用；不补做暂缓项，不移动 tag 或部署生产 |
 
 ### 21.4 风险、失败处理与回滚
 
@@ -1873,8 +1873,12 @@ A/A 每标签 16 个样本，n=16/k=4；以下 A、B 都是同一个 old.test，
 
 - R0/R1 已完成：方案实际全文回读，版本、远端、文件清单与差异已核对；CHANGELOG 整理为 v1.5.0 / 2026-10-21，Version 和 module 未改。
 - 初次 git diff --check 退出 2，仅本轮计划头部两行 Markdown 行尾双空格；已先记录 ERR-20261021-026，仅去除这两处空白后复核退出 0、输出空，条目已关闭。原失败与成功输出均保留于证据目录，不写成首次全过。
-- 当前 Go 环境及 lint 版本核对均退出 0：go1.27.3 darwin/amd64；golangci-lint 2.14.0（构建 Go1.27.2）。R2 发布检查已完成；提交/tag/push/Release 尚未开始。
+- 当前 Go 环境及 lint 版本核对均退出 0：go1.27.3 darwin/amd64；golangci-lint 2.14.0（构建 Go1.27.2）。R2 发布检查已完成；R3/R4 提交、标签推送和正式 Release 已完成，详见下方真实回执。
 
 - R2 本轮真实命令（均在项目根目录、21.2 的离线/只读模块环境执行）：`go build ./...`、`go vet ./...`、`golangci-lint run ./...`、`go fix -diff ./...`、`go test -json -race -count=1 -timeout=5m ./...`、`go test -count=1 -coverprofile=/private/tmp/goerr-release-z_ka1_80/coverage.out ./...`、`go tool cover -func=/private/tmp/goerr-release-z_ka1_80/coverage.out`、`go test -run '^$' -bench . -benchmem -count=3 ./...`，八项均退出 0。lint 为 0 issues，fix 原始输出为空；race 330 个用例通过（含 6 个 Example），两包通过；根包 384/384 语句覆盖，100.0%。逐项 argv/cwd/环境/UTC/退出码/原始输出见 exec-build/vet/lint/fix/race/coverage/cover-func/benchmark 的 json/txt。
 - Benchmark 共 27 组、81 个样本完整保留，实际耗时 113.740 秒；分配次数均未增加。FormatVerbose 为 744 B/op、12 allocs/op，历史隔离对比为 648/12，但真实历史命令使用 -trimpath，本轮未使用；该路径会格式化栈文件名，不能把跨编译参数字节差异判成同条件回退。已读取原工作区十个历史样本，均为 744/12，与本轮三样本一致。该观察、两套原始值与命令均保留，不筛样本或改门槛；本轮未重新裁定 Go1.27.3 下严格 10% 耗时比较。详见 result-release-checks.json，原 Go1.27.2 严格结论仍限定第 20 节条件。
 - 辅助汇总曾读取未确认的历史文件名而退出 1（ERR-20261021-027），已先记录并改用实际发现的证据；当前 Go 检查均为真实退出 0。跨 trimpath 观察记录 ERR-20261021-028，按命令和工作区原始样本核对后关闭，不修改源码。23 份受保护文件、历史第 13～20 节均未变化，当前十份待提交清单不变。
+
+- R3 已完成：显式暂存上述十份文件，逐文件索引内容与已审阅工作区一致，原始 staged-release.patch 与 result-staged-review.json 已保存。`git commit -F commit-message.txt` 退出 0，C1 为 `9a6f7459bd5c74c6b83056ffb484784a6efae99b`，提交后工作区干净。`git tag -a v1.5.0 -F tag-message.txt` 退出 0，附注对象 `94f74e795fd9123a5f8015c354b56e5cd5840bf9`，剥离目标为 C1。`git push --atomic gtkit refs/heads/main:refs/heads/main refs/tags/v1.5.0:refs/tags/v1.5.0` 退出 0；后续 ls-remote 退出 0，main、tag 剥离目标均精确等于 C1，附注对象也相等。未推送 ydsd，未强推或重打标签。
+- R4 已完成：真实 GitHub UI 选择已存在 v1.5.0 标签，填写本版 CHANGELOG 和实际验证说明，点击 Publish release 后页面为 [v1.5.0 正式 Release](https://github.com/gtkit/goerr/releases/tag/v1.5.0)，显示 Latest、released this、2026-10-21 21:04 GMT+8、Tag v1.5.0 和 Commit 9a6f745；不是草稿或预发布。已回读发布正文，保存 github-release-state.txt、github-release.json 与 github-release.jpg，页面保留为交付入口。
+- R5 文档回执：本次仅写回本节和当前发布状态；第 13～20 节及源码/测试/依赖/Version/Makefile/规则继续保持冻结。回读后按既定顺序创建仅含本计划的 C2 并仅快进推送 main；此处记录的是提交前已核实事实，C2 自身哈希/推送退出码与最终工作区/远端核对由证据目录的最终回执及用户汇报确认，已发布 v1.5.0 继续固定 C1。本轮未修改运行代码、安装/升级工具、建设 CI、改造 Makefile、补做安全扫描或连接生产。
