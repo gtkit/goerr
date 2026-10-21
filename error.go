@@ -242,23 +242,29 @@ func WrapStatus(err error, status *Status) error {
 	return wrapStatusItem(err, status, skipViaBuilder)
 }
 
-// WithStack 为普通 error 附加调用栈。err 为 nil 时返回 nil；
-// 链上已有 *Item（已带栈）时原样返回 err——返回链上挖出的那个 *Item 会丢掉外层包装的上下文；
-// 否则按内部服务器错误兜底，避免普通 error 被统一响应层误判为成功。
+// WithStack 为 err 补充调用栈，保留原始全文、状态和 cause。err 为 nil 时返回 nil。
+// 首个匹配的 *Item 已有非空栈或为 typed-nil 时原样返回 err，保留外层包装身份；
+// 非 nil Item 缺栈时返回新包装，在调用方位置抓栈，不修改原 Item。
+// 未找到 Item 的普通错误仍按内部服务器错误兜底。
 func WithStack(err error) error {
 	if err == nil {
 		return nil
 	}
-	if _, ok := errors.AsType[*Item](err); ok {
+	item, ok := errors.AsType[*Item](err)
+	if ok && (item == nil || len(item.stack) > 0) {
 		return err
 	}
 	st := StatusInternalServer()
+	cm := st.Msg()
+	if item != nil {
+		st, cm = item.StatusInfo(), item.Message()
+	}
 	return &Item{
 		msg:       err.Error(),
-		clientMsg: st.Msg(),
+		clientMsg: cm,
 		status:    st,
 		cause:     err,
-		stack:     callers(skipDirect), // 链上已确认没有 *Item，没有可复用的栈
+		stack:     callers(skipDirect), // 首个匹配的 Item 缺栈，或链上没有 Item
 	}
 }
 

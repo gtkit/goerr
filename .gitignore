@@ -3,3 +3,7 @@
 .Ds_Store
 go.work
 go.work.sum
+.vscode/
+.DS_Store
+*.log
+*.out

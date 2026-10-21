@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -337,5 +338,248 @@ func TestStack_sharedAcrossChain(t *testing.T) {
 func TestItem_Format_unknownVerb(t *testing.T) {
 	if s := fmt.Sprintf("%d", New(nil, StatusParams())); s != "%!d(*goerr.Item=参数不合法)" {
 		t.Errorf("unknown verb = %q", s)
+	}
+}
+
+func TestCompatibilityFirstItem(t *testing.T) {
+	t.Parallel()
+	first := New(io.EOF, StatusParams(), "first public message")
+	second := New(io.ErrClosedPipe, StatusNotFound(), "second public message")
+	override := WrapStatus(second, StatusRedisServer())
+	overrideItem, ok := AsItem(override)
+	if !ok || overrideItem == nil {
+		t.Fatal("WrapStatus must create an Item")
+	}
+	for _, tt := range []struct {
+		name   string
+		input  error
+		want   *Item
+		hidden *Item
+	}{
+		{name: "standard wrapper", input: fmt.Errorf("outer: %w", first), want: first},
+		{name: "join", input: errors.Join(io.EOF, first, second), want: first, hidden: second},
+		{name: "reversed join", input: errors.Join(second, first), want: second, hidden: first},
+		{name: "multiple wraps", input: fmt.Errorf("%w | %w", first, second), want: first, hidden: second},
+		{name: "indexed wraps use argument order", input: fmt.Errorf("%[2]w | %[1]w", first, second), want: first, hidden: second},
+		{name: "status override", input: override, want: overrideItem, hidden: second},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := Convert(tt.input); got != tt.want {
+				t.Errorf("Convert must return the first Item, got %p want %p", got, tt.want)
+			}
+			if !HasCode(tt.input, tt.want.Code()) || !errors.Is(tt.input, tt.want) {
+				t.Error("first Item must supply the code and remain reachable")
+			}
+			if tt.hidden != nil && (HasCode(tt.input, tt.hidden.Code()) || !errors.Is(tt.input, tt.hidden)) {
+				t.Error("other Item must remain reachable without changing the selected code")
+			}
+			if got := WithStack(tt.input); got != tt.input {
+				t.Error("an existing stack must preserve the original outer error")
+			}
+		})
+	}
+	if other := New(io.EOF, StatusParams()); errors.Is(first, other) {
+		t.Error("equal business codes must not imply error identity")
+	}
+}
+
+type compatibilityAsError struct{ item *Item }
+
+func (*compatibilityAsError) Error() string { return "outer custom As" }
+
+func (e *compatibilityAsError) As(target any) bool {
+	if item, ok := target.(**Item); ok {
+		*item = e.item
+		return true
+	}
+	return false
+}
+
+func TestCompatibilityCustomAs(t *testing.T) {
+	t.Parallel()
+	inner := New(io.EOF, StatusParams(), "public message")
+	input := &compatibilityAsError{item: inner}
+	if got, ok := AsItem(input); !ok || got != inner || Convert(input) != inner || !HasCode(input, ErrParams) {
+		t.Fatal("custom As must keep the existing Item selection")
+	}
+	if WithStack(input) != input || errors.Is(input, inner) {
+		t.Error("As must not become an Unwrap edge or discard the outer identity")
+	}
+}
+
+type compatibilityForeignError struct{ status *Status }
+
+func (*compatibilityForeignError) Error() string         { return "foreign error" }
+func (e *compatibilityForeignError) StatusInfo() *Status { return e.status }
+func (e *compatibilityForeignError) Code() Code          { return e.status.Code() }
+func (*compatibilityForeignError) Message() string       { return "foreign public message" }
+func (e *compatibilityForeignError) HTTPCode() int       { return e.status.HTTPCode() }
+
+func TestCompatibilityForeignError(t *testing.T) {
+	t.Parallel()
+	var input Error = &compatibilityForeignError{status: StatusParams()}
+	if item, ok := AsItem(input); ok || item != nil || HasCode(input, ErrParams) {
+		t.Fatal("the legacy query must not treat every Error implementation as an Item")
+	}
+	for _, got := range []*Item{Convert(input), Convert(Wrap(input, "outer"))} {
+		if got.Code() != ErrInternalServer || got.HTTPCode() != http.StatusInternalServerError ||
+			got.Message() != StatusInternalServer().Msg() || !errors.Is(got, input) {
+			t.Errorf("non-Item error must keep the internal fallback and cause: %+v", got)
+		}
+	}
+}
+
+func TestCompatibilityTypedNil(t *testing.T) {
+	t.Parallel()
+	var item *Item
+	for _, tt := range []struct {
+		name  string
+		input error
+	}{
+		{name: "direct", input: item},
+		{name: "first join branch", input: errors.Join(item, New(io.EOF, StatusNotFound()))},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got, ok := AsItem(tt.input); !ok || got != nil {
+				t.Fatal("the first typed-nil Item must remain a nil/true match")
+			}
+			got := Convert(tt.input)
+			if got == nil || got.Code() != ErrInternalServer || got.HTTPCode() != http.StatusInternalServerError ||
+				got.Message() != StatusInternalServer().Msg() || !errors.Is(got, tt.input) {
+				t.Fatal("Convert must preserve the non-nil failure fallback and cause")
+			}
+			if !HasCode(tt.input, ErrInternalServer) || HasCode(tt.input, ErrNotFound) || WithStack(tt.input) != tt.input {
+				t.Error("typed-nil selection and WithStack identity must remain unchanged")
+			}
+		})
+	}
+}
+
+type compatibilityMutableError struct{ text string }
+
+func (e *compatibilityMutableError) Error() string { return e.text }
+
+func TestCompatibilityTextSnapshot(t *testing.T) {
+	t.Parallel()
+	cause := &compatibilityMutableError{text: "original cause"}
+	inner := New(cause, StatusParams(), "public message")
+	outer := Wrap(inner, "outer")
+	cause.text = "changed cause"
+	// 这里核对明确的全文缓存契约，不用文案来判定错误类别。
+	if inner.Error() != "public message: original cause" || outer.Error() != "outer: public message: original cause" {
+		t.Error("construction must preserve its original text snapshot")
+	}
+	if Convert(outer).Message() != "public message" || !errors.Is(outer, cause) || !errors.Is(outer, inner) {
+		t.Error("cached text must not change the public message or sever cause identity")
+	}
+}
+
+// 阶段 1 建立的失败反例，作为缺栈输入的补栈回归保留。
+func TestWithStackMissingStack(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name  string
+		input error
+	}{
+		{name: "converted_plain", input: Convert(io.EOF)},
+		{name: "zero_item", input: &Item{}},
+		{name: "empty_non_nil_stack", input: &Item{stack: []uintptr{}}},
+		{name: "converted_nil", input: Convert(nil)},
+		{name: "wrapped_plain", input: fmt.Errorf("outer: %w", Convert(io.EOF))},
+		{name: "nil_status", input: &Item{msg: "plain: EOF", clientMsg: "plain public", cause: io.EOF}},
+		{name: "custom_status", input: &Item{msg: "custom: EOF", clientMsg: "custom public", status: NewStatus(1, 299, "custom"), cause: io.EOF}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			original := Convert(tt.input)
+			if len(original.stack) != 0 {
+				t.Fatal("fixture must have no existing stack")
+			}
+			wantText, wantMessage := tt.input.Error(), original.Message()
+			wantCode, wantHTTP := original.Code(), original.HTTPCode()
+			got := WithStack(tt.input)
+			item, ok := AsItem(got)
+			if !ok || item == nil {
+				t.Fatal("WithStack must produce a non-nil Item")
+			}
+			if got == tt.input || errors.Unwrap(got) != tt.input || !errors.Is(got, tt.input) {
+				t.Error("missing stack requires a new wrapper with the original input as its direct cause")
+			}
+			if got.Error() != wantText || item.Message() != wantMessage || item.Code() != wantCode || item.HTTPCode() != wantHTTP {
+				t.Error("adding a stack must preserve the full text, public message and status")
+			}
+			if len(item.stack) == 0 {
+				t.Error("WithStack returned an Item without a stack")
+			} else {
+				frame, _ := runtime.CallersFrames(item.stack).Next()
+				if !strings.HasSuffix(frame.File, "/error_test.go") || !strings.Contains(frame.Function, "TestWithStackMissingStack") {
+					t.Errorf("first frame must be the caller, got %s:%d %s", frame.File, frame.Line, frame.Function)
+				}
+			}
+			if len(original.stack) != 0 || WithStack(got) != got {
+				t.Error("original input must stay unchanged and the new wrapper must be reused")
+			}
+		})
+	}
+}
+
+func TestWithStackChains(t *testing.T) {
+	t.Parallel()
+	missing := Convert(io.EOF)
+	stacked := New(io.ErrClosedPipe, StatusNotFound(), "public message")
+	for _, tt := range []struct {
+		name        string
+		input       error
+		wantCapture bool
+	}{
+		{name: "join missing first", input: errors.Join(missing, stacked), wantCapture: true},
+		{name: "join stacked first", input: errors.Join(stacked, missing)},
+		{name: "multiple wraps", input: fmt.Errorf("outer: %w | %w", missing, stacked), wantCapture: true},
+		{name: "shared missing branch", input: errors.Join(missing, missing), wantCapture: true},
+		{name: "custom As missing", input: &compatibilityAsError{item: missing}, wantCapture: true},
+		{name: "custom As typed nil", input: &compatibilityAsError{}},
+		{name: "foreign Error", input: &compatibilityForeignError{status: StatusParams()}, wantCapture: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			original := Convert(tt.input)
+			wantText, wantMessage := tt.input.Error(), original.Message()
+			wantCode, wantHTTP := original.Code(), original.HTTPCode()
+			got := WithStack(tt.input)
+			if !tt.wantCapture {
+				if got != tt.input {
+					t.Error("an existing stack or typed-nil match must preserve the original input")
+				}
+				return
+			}
+			item, ok := AsItem(got)
+			if !ok || item == nil || len(item.stack) == 0 {
+				t.Fatal("the first missing stack must be captured")
+			}
+			if got == tt.input || errors.Unwrap(got) != tt.input || !errors.Is(got, tt.input) {
+				t.Error("new wrapper must retain the original outer input as its direct cause")
+			}
+			if got.Error() != wantText || item.Message() != wantMessage || item.Code() != wantCode || item.HTTPCode() != wantHTTP {
+				t.Error("branch structure or custom As must not change the text or selected status")
+			}
+			for _, cause := range []error{io.EOF, io.ErrClosedPipe} {
+				if errors.Is(got, cause) != errors.Is(tt.input, cause) {
+					t.Errorf("cause reachability changed for %v", cause)
+				}
+			}
+			frame, _ := runtime.CallersFrames(item.stack).Next()
+			if !strings.HasSuffix(frame.File, "/error_test.go") || !strings.Contains(frame.Function, "TestWithStackChains") {
+				t.Errorf("first frame must be the caller, got %s:%d %s", frame.File, frame.Line, frame.Function)
+			}
+			downstream, ok := AsItem(Wrap(got, "downstream"))
+			if !ok || downstream == nil || len(downstream.stack) == 0 || &downstream.stack[0] != &item.stack[0] {
+				t.Error("downstream wrappers must reuse the captured stack")
+			}
+			if len(original.stack) != 0 || WithStack(got) != got {
+				t.Error("the original must stay unchanged and a second WithStack must reuse the wrapper")
+			}
+		})
 	}
 }

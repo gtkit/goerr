@@ -6,6 +6,8 @@
 **版本说明与破坏性变更见 [CHANGELOG.md](./CHANGELOG.md)。**  
 **合并与发版前测试清单见 [CONTRIBUTING.md](./CONTRIBUTING.md)。**
 
+当前未发布开发版本为 **v1.5.0**，最低要求 **Go 1.27.0**；原先的 Go 1.26 工具链不再满足模块最低版本要求。module/import 路径保持 `github.com/gtkit/goerr`。
+
 ---
 
 ## Message() 与 Error()：团队约定（必读）
@@ -15,14 +17,14 @@
 | 方法 | 用途 | 典型使用位置 |
 | --- | --- | --- |
 | **`Message() string`** | **给客户端 / 调用方看的短文案** | 统一 JSON 响应里的 `message` 字段、移动端提示、OpenAPI 文档中的用户可见说明 |
-| **`Error() string`** | **给服务端日志、告警、链路追踪看的完整描述** | `log.Print(err)`、`zap.Error(err)`、`fmt.Errorf("...: %w", err)`、可含底层 `cause` 拼接后的全文 |
+| **`Error() string`** | **给服务端日志、告警、链路追踪看的完整描述** | 用 `Inspect(err)` 读取全文，选择字段并脱敏后交给 `gtkit/logger`；`fmt.Errorf("...: %w", err)` 保留错误链 |
 
 **约定说明：**
 
 1. **`Message()`** 应尽量稳定、可读、**不暴露内部实现细节**（例如不要把数据库驱动返回的英文原句直接当作主提示）。有底层错误时，`New` 会把「自定义或 Status 默认文案」放在 `Message()`，把「文案 + 底层错误」放在 `Error()` 供日志使用。
 2. **`Error()`** 实现标准库的 `error` 接口，适合**排障**：通常包含更多上下文，例如 `New(err, ...)` 时会把 `err.Error()` 拼进全文。
 3. 业务网关或 BFF 组装 HTTP 响应时，请用 **`Code()` + `Message()` + `HTTPCode()`**（以及你们协议里约定的字段名）；**不要**把 `Error()` 整段直接回给前端，除非你们明确允许暴露内部信息。
-4. 开发排查问题时，请打印 **`Error()`** 或使用 **`fmt.Sprintf("%+v", item)`**（若需栈与 cause 信息），**不要**只看 `Message()`，否则会丢掉底层原因。
+4. 开发排查问题时，用 **`Inspect(err)`** 同时读取根全文与已有起源栈，选择字段并脱敏后记录；只看 `Message()` 会丢掉底层原因。`fmt.Sprintf("%+v", item)` 适合检查 `Item` 的文本格式，标准外层包装不保证转发这一格式。
 
 下面示例演示「响应体用 Message，日志用 Error」：
 
@@ -33,9 +35,8 @@ item := goerr.New(someErr, goerr.StatusMysqlServer(), "数据库繁忙")
 // { "code": 10010201, "message": "数据库繁忙" }  ← 使用 item.Message()
 // 不要误用 item.Error() 作为对外 message
 
-// 服务端日志
-log.Printf("request failed: %v", item.Error())
-// 输出中会包含底层 someErr，便于排查
+// 服务端日志：Inspect 原错误，选择字段并脱敏后交给 gtkit/logger。
+// 完整调用方函数见下方“可插拔出口与项目日志”。
 ```
 
 ---
@@ -87,13 +88,13 @@ func (h *handler) Profile(c *gin.Context) {
 func respond(c *gin.Context, data any, err error) {
 	e := goerr.Convert(err)
 	c.JSON(e.HTTPCode(), gin.H{"code": e.Code(), "message": e.Message(), "data": data})
-	// 日志请打原始 err（%+v 带调用栈），不要打 Convert 的结果
+	// 日志从原始 err 读取 Inspect 快照，选择字段并脱敏；诊断失败不改变业务响应。
 }
 ```
 
-这条链上，客户端收到 `{"code":10010026,"message":"用户不存在"}`；日志里 `%+v` 打出
-`load profile: 用户不存在: sql: no rows in result set`，后面跟 repository 那一行起的调用栈——
-整条链只有一份栈，就是最接近错误起源的那份。
+这条链上，客户端收到 `{"code":10010026,"message":"用户不存在"}`；检查 `Inspect(err)` 的 error 后，快照 `Error` 的全文为
+`load profile: 用户不存在: sql: no rows in result set`。
+原因节点的 `Frames` 保留 repository 创建错误时的起源栈，由调用方决定是否记录。
 
 ### 其他入口
 
@@ -102,9 +103,14 @@ func respond(c *gin.Context, data any, err error) {
 | `Newf(status, format, args...)` | 只想格式化一条文案、没有底层 `err` |
 | `Wrapf(err, format, args...)` | `Wrap` 的格式化版 |
 | `WrapStatus(err, status)` | 中间件 / 边界把第三方 `error` 映射成本服务的业务状态 |
-| `WithStack(err)` | 只想给普通 `error` 补一份栈、不加文案 |
+| `WithStack(err)` | 给普通错误或无栈 `Item` 补栈，保留全文、状态与对外文案 |
 | `HasCode(err, code)` | 按业务码分支。同一失败语义在不同位置构造出的是不同 `*Item` 实例，`errors.Is` 判不出相等 |
 | `AsItem(err) (*Item, bool)` | 需要区分「链上有没有 `*Item`」时用；只是取字段请用 `Convert` |
+| `Inspect(err) (Diagnostic, error)` | 主动读取内部诊断快照，保留根全文、主状态、实际原因树与已有栈 |
+
+`WithStack` 沿用首个匹配 `Item` 的选择：已有非空栈时返回原始 `err`；非 nil `Item` 缺栈时新建包装，以原始 `err` 为直接 cause，在调用方位置捕获栈，不修改原对象。标准外层前缀和 `errors.Is` 对原错误的可达性保留，第二次调用复用补好的栈。已知 typed-nil `Item` 保持原样返回。
+
+`Convert` 仍不抓栈。需要时可对其结果调用 `WithStack`；`Convert(nil)` 本身是非 nil 的成功状态对象，补栈保留其成功码和文案，不把它归一化为 nil。
 
 ### 三条规则
 
@@ -119,6 +125,79 @@ func respond(c *gin.Context, data any, err error) {
 | `nil` | 成功状态（`StatusOK()`） |
 | 链上有 `*Item` | 该 `*Item`，自定义对外文案原样保留 |
 | 普通 `error` | 按 `StatusInternalServer()` 包装；`Message()` 是状态默认文案，`Error()` 保留原文 |
+
+---
+
+## 内部诊断快照
+
+标准库外层包装的全文和内层 `Item` 的已有起源栈，可通过 `Inspect` 一次读取：
+
+```go
+cause := goerr.New(nil, goerr.StatusParams(), "invalid input")
+input := fmt.Errorf("load profile: %w", cause)
+diagnostic, inspectErr := goerr.Inspect(input)
+if inspectErr != nil {
+	fmt.Println("诊断读取失败")
+	return
+}
+fmt.Println(diagnostic.Error)   // load profile: invalid input
+fmt.Println(diagnostic.Message) // invalid input
+// diagnostic.Causes[1].Frames 是 cause 的已有起源栈，不是 Inspect 的调用位置。
+```
+
+`Diagnostic` 的 `Code`、`HTTPCode`、`Message` 与旧 `Convert(input)` 的主状态选择一致；`Error` 则始终是根 `input.Error()` 的完整原文。标准包装前缀保留，`Convert`、`HasCode` 的首个 `Item` 选择不变。自定义 `As` 提供的虚拟 `Item` 可以决定主状态，但不会成为实际原因节点。
+
+`Causes` 按 `Unwrap() error` / `Unwrap() []error` 的实际子项顺序前序展开，根的 `Parent=-1`，其他 `Parent` 指向直接父索引。`HasCode` 区分普通节点与实际实现 `goerr.Error` 的非 nil 节点；原因节点的业务码不会替换主状态。同一对象在不同分支分别列出；一条路径上共享同一 PC 切片的栈只在首次实际携带它的节点保存，兄弟分支各自保存。
+
+`Inspect(nil)` 成功返回 `HasError=false`、成功状态、空全文和 nil 原因列表。非 nil 的成功 `Item` 仍是 `HasError=true`；已知 typed-nil `*Item` 使用内部错误主状态，节点无业务码或栈。其他 typed-nil 节点在调用方法前使读取失败。
+
+读取最多访问 **256 个节点/子槽**，多值 `Unwrap` 返回的 nil 槽也计数但不产生原因节点；最多保存 **16384 个 rune**，累计全文、公开文案和实际保存帧的 `File` / `Function`。恰好到上限允许；原字符串及无效 UTF-8 字节不改写。循环、超限或未知 typed-nil 均返回零 `Diagnostic` 和非 nil 诊断错误，不返回部分快照。诊断错误只表示读取失败，不替换原业务错误，不提供按类型或文字分支的稳定分类契约。
+
+每次调用的 `Causes` / `Frames` 拥有独立可写存储；修改返回值不影响原错误或其他调用的快照，`runtime.Frame.Func` 仅引用运行时只读元数据。普通赋值复制同一个快照仍会共享切片；并发修改同一份数据需要调用方同步。输入在读取期间须保持稳定，外部 `Error` / `Unwrap` / `As` / `Code` 方法须有限、无阻塞且不 panic；预算不能隔离这些方法内部的阻塞、分配或副作用。
+
+快照包含内部原文和路径，**不是客户端响应或稳定编码协议**。输出、附加字段与脱敏由调用方负责；goerr 不自动编码或记录日志，不提供 Logger、注册器或配置项，不引入外部依赖。调用方可以用普通函数消费快照，保留可插拔出口。旧构造、包装和转换路径不调用 `Inspect`。
+
+### 可插拔出口与项目日志
+
+出口直接使用调用方的 `func(goerr.Diagnostic) error`。函数闭包可绑定目标 writer、操作名或请求上下文；替换函数变量即可切换出口，也可依次调用多个函数消费同一快照。共享快照的出口须只读；修改切片时，调用方应自行准备独立数据。
+
+[外部调用方用例](./test/integration_test.go) 用两个普通函数把同一快照写成文本和 JSON，验证切换、并存、字段脱敏，以及写入前失败和部分写入后失败。JSON 仅编码调用方私有的 `operation`、`request_id`、`code`、`error`、`cause_count` 字段，不定义 goerr 的稳定日志协议。测试使用 `encoding/json`，是为了验证零依赖公共库与标准数据格式的互操作；应用仍沿用自身已锁定的 `gtkit/json` 路径和版本。
+
+调用方先检查 `Inspect(businessErr)` 的诊断错误，再决定是否调用出口；`HasError=false` 时可直接跳过。诊断读取失败不回退记录未经处理的原文；输出失败可能已写出部分字节，不能撤销，也不自动重试。诊断或输出错误单独处理，业务响应仍使用原 `businessErr` 的 `Convert` 与 `SanitizeForClient`，不能被日志错误替换。
+
+下面的私有函数演示调用方接入已经初始化的项目日志。该 API 参考已使用本机缓存的真实源码 **`github.com/gtkit/logger v1.10.0`、`go.uber.org/zap v1.28.0`** 在 Go 1.27.2 离线编译通过；其他锁定版本的 API 须单独核对。这不是依赖升级要求，goerr 本身不引入 logger 或 zap。
+
+```go
+package app
+
+import (
+	"context"
+
+	"github.com/gtkit/goerr"
+	"github.com/gtkit/logger"
+	"go.uber.org/zap"
+)
+
+func loggerOutput(ctx context.Context, operation string) func(goerr.Diagnostic) error {
+	return func(diagnostic goerr.Diagnostic) error {
+		if !diagnostic.HasError {
+			return nil
+		}
+		logger.ErrorCtx(ctx, "request failed",
+			zap.String("operation", operation),
+			zap.Int32("code", int32(diagnostic.Code)),
+			zap.Int("http_code", diagnostic.HTTPCode),
+			zap.String("error", goerr.RedactForLog(diagnostic.Error)),
+			zap.Int("cause_count", len(diagnostic.Causes)),
+		)
+		return nil // ErrorCtx 无返回值；这里只表示调用完成，不表示持久化或平台接收成功。
+	}
+}
+```
+
+通过 `output := loggerOutput(ctx, "load_profile")` 绑定出口，对成功读取且 `HasError=true` 的快照调用 `output(diagnostic)` 并检查其返回值。该 logger API 没有逐条交付错误或确认能力；编译与内存 writer 用例均不能证明真实日志平台接收成功，平台接收须在调用方环境单独验证。
+
+请求和链路关联字段沿用应用已有的 `logger.WithContextFields` 配置来源；goerr 不引入 context/provider，也不负责初始化、关闭或调整日志配置。日志库自动捕获的 stacktrace 是记录位置，不能冒充 `Causes` 中的起源 `Frames`。需要输出起源栈时，由调用方按 `Parent` 组织原因关系、选择帧字段并处理内部路径，不直接编码整个快照或运行时元数据。
 
 ---
 
@@ -144,7 +223,7 @@ safe := goerr.SanitizeForClient(msg, goerr.SanitizeOptions{
 
 `Error()` 常包含 **cause 链全文**，容易带上 **手机号、邮箱、SQL、路径** 等敏感信息。建议：
 
-1. 落库/落盘前对字符串调用 **`goerr.RedactForLog(err.Error())`**（或接入日志平台的脱敏管道）；  
+1. 落库/落盘前对选取的全文调用 **`goerr.RedactForLog(diagnostic.Error)`**（或接入日志平台的脱敏管道）；该函数只覆盖既有手机号、邮箱规则，其他业务秘密仍由调用方策略处理；  
 2. 与 **日志分级、留存周期、访问审计** 策略一起使用，**不要**把原始 `Error()` 直接暴露给非运维角色。
 
 ---
